@@ -1,25 +1,22 @@
 <p align="center">
-  <img src="assets/laodi-logo.png" width="112" alt="Laodi-skills 老底标志">
+  <img src="assets/laodi-logo.png" width="180" alt="Laodi-skills 老底标志">
 </p>
 <h1 align="center">Laodi-skills · 老底</h1>
 
-<table>
-  <tr>
-    <td width="29%" align="center" valign="middle">
-      <img src="assets/chat-demo.png" width="260" alt="虚构聊天示意，不是真实平台事件或泄露证据">
-      <br><sub>虚构聊天示意，非真实事件</sub>
-    </td>
-    <td width="39%" align="center" valign="middle">
-      <strong>担心自己的 Git 历史<br>被第三方工具悄悄上传？</strong>
-      <br><br>Laodi-skills 保护你老底。
-      <br><br>一次接入，后台监控。
-      <br>有小动作，及时提醒。
-    </td>
-    <td width="32%" align="center" valign="middle">
-      <img src="assets/closure.png" width="300" alt="可露希尔表情插画">
-    </td>
-  </tr>
-</table>
+<p>
+  <img src="assets/chat-demo.png" width="390" align="left" alt="聊天记录截图">
+</p>
+
+<h3>担心自己的 Git 历史被第三方工具悄悄上传？</h3>
+<p>Laodi-skills 保护你老底。</p>
+<p>一次接入，后台监控。</p>
+<p>有小动作，及时提醒。</p>
+
+<br clear="all">
+
+<p align="center">
+  <img src="assets/closure.png" width="480" alt="可露希尔表情插画">
+</p>
 
 Laodi-skills 是 AI 编程工具的**本地隐私监测器**。它监测已支持的仓库快照和上传线索，检查工具输出中的疑似凭据，通过系统通知提醒，并提供可供 Agent 查询的脱敏记录。
 
