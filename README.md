@@ -19,7 +19,7 @@
 
 <br clear="all">
 
-Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照和上传线索，检查工具输出中的疑似凭据，通过系统通知提醒，并提供可供 Agent 查询的脱敏记录。
+Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照和上传线索，检查编程工具输出的疑似凭据，通过系统通知提醒，并提供可供 Agent 查询的脱敏记录。
 
 **当前为 Dev 版，需要一次接入和通知授权。**
 
@@ -36,7 +36,7 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照
 
 ## 快速开始
 
-需要 macOS、Go 1.25 或更新版本、Xcode Command Line Tools。先选定长期保留的目录：后台服务和 Hook 会引用构建产物的绝对路径，接入后移动目录需重新安装。
+需要 macOS、Go 1.25 或更新版本、Xcode Command Line Tools。
 
 ```sh
 git clone https://github.com/Shenrui-Ma/Laodi-skills.git
@@ -69,7 +69,7 @@ make build
 ./bin/laodi hooks status
 ```
 
-把 [`skills/laodi`](skills/laodi) 放入客户端支持的 Skill 目录，并确保 `laodi` 可在该客户端的 `PATH` 中找到。**
+把 [`skills/laodi`](skills/laodi) 放入客户端支持的 Skill 目录，并确保 `laodi` 可在该客户端的 `PATH` 中找到。
 
 ## 架构
 
