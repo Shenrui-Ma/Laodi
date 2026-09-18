@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-18T13:52:54.251278+00:00",
+  "scope": "Actual Go development monitor, 100 synthetic manifests, 22-second bounded run, no changes after startup.",
+  "host": {
+    "system": "Darwin",
+    "macos": "26.3",
+    "machine": "arm64"
+  },
+  "binary": {
+    "version": "0.1.0-dev",
+    "bytes": 5010306,
+    "sha256": "67a418663ceafcd69773b5554a12017fca2e201034ce5e59484e84b840c832af",
+    "mtime_ns": 1789739356436213875
+  },
+  "measurement": {
+    "rss": "/bin/ps RSS in KiB; periodic samples are not the exact memory peak",
+    "fds": "macOS proc_pidinfo(PROC_PIDLISTFDS), only the spawned monitor PID",
+    "cpu": "wait4 rusage for monitor PID only, excludes Python sampler and ps",
+    "peak_rss": "wait4 ru_maxrss in bytes on macOS",
+    "sample_interval_seconds": 2
+  },
+  "safety": {
+    "synthetic_temporary_files_only": true,
+    "real_zcode_paths_read": false,
+    "notifier_configured": false,
+    "notifications_requested": false,
+    "network_operations_requested": false,
+    "dependencies_installed": false,
+    "background_service_installed": false,
+    "system_settings_changed": false
+  },
+  "limitations": [
+    "One short run on one development host is not a 24-hour SLA or production certification.",
+    "No continuous file writes, large manifests, system notifications, real application activity or suspend/resume is measured.",
+    "Periodic FD and RSS sampling can miss transient peaks; no general memory ceiling is established.",
+    "These synthetic files validate resource behavior, not the correctness of all real ZCode versions or upload detection.",
+    "The binary path changed during measurement. This run describes the development process launched after the recorded pre-spawn hash; it does not establish performance of the replacement/current artifact."
+  ],
+  "samples": [
+    {
+      "elapsed_seconds": 0.004444458056241274,
+      "rss_kib": 6544,
+      "cpu_time_ps": "0:00.00",
+      "open_fds": 9
+    },
+    {
+      "elapsed_seconds": 2.0092480829916894,
+      "rss_kib": 8160,
+      "cpu_time_ps": "0:00.01",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 4.021668415982276,
+      "rss_kib": 8480,
+      "cpu_time_ps": "0:00.02",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 6.02801820798777,
+      "rss_kib": 8768,
+      "cpu_time_ps": "0:00.02",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 8.037971874931827,
+      "rss_kib": 10432,
+      "cpu_time_ps": "0:00.03",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 10.048717458033934,
+      "rss_kib": 10576,
+      "cpu_time_ps": "0:00.04",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 12.057059000013396,
+      "rss_kib": 10816,
+      "cpu_time_ps": "0:00.04",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 14.067968749906868,
+      "rss_kib": 11008,
+      "cpu_time_ps": "0:00.05",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 16.07797879097052,
+      "rss_kib": 11088,
+      "cpu_time_ps": "0:00.05",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 18.085884666070342,
+      "rss_kib": 11104,
+      "cpu_time_ps": "0:00.06",
+      "open_fds": 7
+    },
+    {
+      "elapsed_seconds": 20.090703583089635,
+      "rss_kib": 11136,
+      "cpu_time_ps": "0:00.06",
+      "open_fds": 7
+    }
+  ],
+  "command_shape": "bin/laodi watch --root <synthetic-checkpoints> --state-dir <fresh-private-state> --build 3.12.3.7463 --interval 2s --duration 22s",
+  "exit_code": 0,
+  "timed_out": false,
+  "observed_wall_seconds": 22.092270040884614,
+  "stdout": "",
+  "stderr": "",
+  "process_resources": {
+    "user_cpu_seconds": 0.011439999999999999,
+    "system_cpu_seconds": 0.056270999999999995,
+    "total_cpu_seconds": 0.067711,
+    "cpu_percent_of_one_core_over_observed_wall": 0.3064918176117348,
+    "peak_rss_bytes": 11730944
+  },
+  "saved_state": {
+    "exists": true,
+    "initialized": true,
+    "coverage": "observing",
+    "running": false,
+    "seen_count": 100,
+    "event_count": 100,
+    "bytes": 72527
+  },
+  "binary_unchanged_during_run": false,
+  "sample_summary": {
+    "count": 11,
+    "rss_kib_min": 6544,
+    "rss_kib_median": 10576,
+    "rss_kib_max": 11136,
+    "fds_min": 7,
+    "fds_max": 9
+  },
+  "verification_passed": false,
+  "probe_execution_passed": true
+}

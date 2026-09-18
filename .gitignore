@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.omx/
+bin/
+.DS_Store
+/.env
+/.env.*
+*.log
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.jsonl

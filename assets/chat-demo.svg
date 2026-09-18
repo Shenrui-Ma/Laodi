@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="470" viewBox="0 0 320 470" role="img" aria-labelledby="title desc">
+  <title id="title">老底概念演示对话</title>
+  <desc id="desc">用户请编程助手修复问题，老底提醒快照清单包含Git历史。虚构场景，不是真实聊天或系统截图。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#15171e"/><stop offset="1" stop-color="#0d1017"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#b49cff"/><stop offset="1" stop-color="#83d9d0"/></linearGradient>
+  </defs>
+  <rect x="1" y="1" width="318" height="468" rx="22" fill="url(#bg)" stroke="#303440"/>
+  <path d="M23 68H297" stroke="#303440"/>
+  <circle cx="29" cy="30" r="4" fill="#85d6bb"/>
+  <text x="43" y="35" fill="#f5f6fa" font-size="15" font-weight="700" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">开发现场</text>
+  <rect x="221" y="21" width="76" height="22" rx="11" fill="#262b38"/>
+  <text x="259" y="36" text-anchor="middle" fill="#aeb6c8" font-size="10" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">概念演示</text>
+  <text x="23" y="97" fill="#919bad" font-size="10" letter-spacing="1.2" font-family="Arial,sans-serif">YOU</text>
+  <rect x="63" y="110" width="234" height="56" rx="14" fill="#34304b"/>
+  <text x="78" y="134" fill="#f4f0ff" font-size="14" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif"><tspan x="78">帮我修一下这个小 bug，</tspan><tspan x="78" dy="20">跑完测试就好。</tspan></text>
+  <text x="23" y="193" fill="#919bad" font-size="10" letter-spacing="1.2" font-family="Arial,sans-serif">CODING AGENT</text>
+  <rect x="23" y="205" width="227" height="56" rx="14" fill="#232833"/>
+  <text x="38" y="229" fill="#e4e8f1" font-size="14" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif"><tspan x="38">修好了，测试通过。</tspan><tspan x="38" dy="20">继续下一个任务？</tspan></text>
+  <rect x="23" y="283" width="274" height="110" rx="14" fill="#182d2c" stroke="#39675f"/>
+  <rect x="37" y="298" width="23" height="23" rx="7" fill="url(#accent)"/>
+  <text x="48.5" y="314" text-anchor="middle" fill="#142323" font-size="14" font-weight="800" font-family="Arial,sans-serif">L</text>
+  <text x="70" y="314" fill="#c5f0e5" font-size="13" font-weight="700" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">老底发现了快照线索</text>
+  <text x="38" y="344" fill="#eefbf7" font-size="14" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif"><tspan x="38">清单里，怎么还有 Git 历史？</tspan><tspan x="38" dy="21" fill="#96b9b0" font-size="11">上传是否完成未知 · 当前任务继续</tspan></text>
+  <text x="160" y="426" text-anchor="middle" fill="#c6c0dc" font-size="14" font-weight="600" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">写代码可以，掀老底可不行。</text>
+  <text x="160" y="450" text-anchor="middle" fill="#737f94" font-size="10" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">虚构对话 · 不代表真实客户端或通知截图</text>
+</svg>

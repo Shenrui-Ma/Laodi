@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "build": "local development helper",
+  "action": "status",
+  "authorization": "not_determined",
+  "delivery": "not_requested",
+  "permission_requested": false,
+  "notification_sent": false,
+  "gui_shown": false,
+  "observed_result": "query succeeded; notification center/alert settings not_supported before authorization"
+}

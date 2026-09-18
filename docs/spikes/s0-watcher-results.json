@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-18T12:41:04.633377+00:00",
+  "scope": "Synthetic local file-event monitoring feasibility; neither upload evidence nor system notification delivery.",
+  "host": {
+    "system": "Darwin",
+    "macos": "26.3",
+    "machine": "arm64",
+    "python": "3.13.13"
+  },
+  "implementation": "Python standard-library select.kqueue; directory vnode events plus dynamically registered manifest file vnode events; content hash deduplication and startup baseline.",
+  "measurement": "Atomic publish/append returns, then an idle synchronous event loop consumes queued kernel events and parses complete JSON. Latency ends when the local event is appended in memory. Setup and staged-file writes are excluded for atomic publication. No background-load or OS notification latency is measured.",
+  "safety": {
+    "synthetic_temporary_files_only": true,
+    "real_zcode_paths_read": false,
+    "network_operations_requested": false,
+    "dependencies_installed": false,
+    "notification_permission_requested": false,
+    "notifications_displayed": false,
+    "system_settings_changed": false
+  },
+  "notification_delivery": {
+    "status": "not_tested",
+    "reason": "No notification permission request or popup was authorized or needed for this local watcher feasibility probe."
+  },
+  "limitations": [
+    "Recognizes a synthetic JSON schema only; does not validate any real ZCode version or checkpoint field meaning.",
+    "A parsed local manifest is not evidence that data was uploaded or that the server accepted/deleted it.",
+    "Directory events alone cannot reliably signal in-place appends; this probe explicitly attaches individual file vnode watches.",
+    "One descriptor per observed manifest is used; large-file-count scalability and descriptor budgeting are untested.",
+    "Rename invalidation is detected but automatic reattachment, root recreation, service restarts and missed-event recovery are not implemented.",
+    "No durability/finality claim is made for a syntactically complete file, and adversarial concurrent modification is not tested.",
+    "The small idle sample does not validate p95 latency under load, sleep/resume, storage errors, event backlog, or notification delivery."
+  ],
+  "tests": {
+    "existing_startup_file": {
+      "passed": true,
+      "baseline_file_count": 1,
+      "new_events": [],
+      "meaning": "The pre-existing valid manifest seeds state and is not emitted as a new incident."
+    },
+    "new_complete_manifests": {
+      "passed": true,
+      "samples": [
+        {
+          "sequence": 0,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.134
+        },
+        {
+          "sequence": 1,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.066
+        },
+        {
+          "sequence": 2,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.054
+        },
+        {
+          "sequence": 3,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.049
+        },
+        {
+          "sequence": 4,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.042
+        },
+        {
+          "sequence": 5,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.039
+        },
+        {
+          "sequence": 6,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.117
+        },
+        {
+          "sequence": 7,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.093
+        },
+        {
+          "sequence": 8,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.077
+        },
+        {
+          "sequence": 9,
+          "bytes": 147,
+          "detected": true,
+          "local_detection_delay_ms": 0.102
+        },
+        {
+          "sequence": 10,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.104
+        },
+        {
+          "sequence": 11,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.09
+        },
+        {
+          "sequence": 12,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.062
+        },
+        {
+          "sequence": 13,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.041
+        },
+        {
+          "sequence": 14,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.081
+        },
+        {
+          "sequence": 15,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.071
+        },
+        {
+          "sequence": 16,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.092
+        },
+        {
+          "sequence": 17,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.09
+        },
+        {
+          "sequence": 18,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.14
+        },
+        {
+          "sequence": 19,
+          "bytes": 148,
+          "detected": true,
+          "local_detection_delay_ms": 0.085
+        }
+      ],
+      "detected_count": 20,
+      "expected_count": 20,
+      "local_detection_ms": {
+        "p50": 0.083,
+        "p95_nearest_rank": 0.134,
+        "max": 0.14
+      }
+    },
+    "partial_json_then_in_place_completion": {
+      "passed": true,
+      "incomplete_json_reads": 1,
+      "premature_events": [],
+      "completion_detected": true,
+      "completion_to_local_detection_ms": 0.103,
+      "meaning": "The partial document is not emitted; the file's subsequent vnode write event triggers successful rereading without a directory rescan timer."
+    },
+    "directory_rename_invalidates_configured_path": {
+      "passed": true,
+      "event": {
+        "kind": "watch_path_invalidated",
+        "flags": [
+          "NOTE_RENAME"
+        ],
+        "observed_at_ns": 1713913531656666,
+        "configured_path_exists": false,
+        "watched_inode_fd_still_open": true
+      },
+      "rename_to_local_detection_ms": 0.008,
+      "meaning": "kqueue remains attached to the inode, but the configured pathname no longer exists; coverage is marked invalid and parsing stops until explicit recovery."
+    }
+  },
+  "observed_kernel_event_count": 23,
+  "local_event_count": 22,
+  "peak_manifest_file_descriptors": 22,
+  "verification_passed": true
+}

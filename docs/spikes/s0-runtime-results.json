@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "timestamp": "2026-09-18T12:57:20Z",
+  "platform": "26.3",
+  "runtime_version": "0.0.76",
+  "runtime_integrity": "sha512-wIC++TvCopRPJcX/v/PCp/SjYOWk/cAVq+VF9v6E3WwkriFP9uu2wvPJ2E+wMrNa3i3h3ew9zTpHcmyGLBKo0w==",
+  "package_lock_sha256": "234aca939a93997023fb47801df25bdfedcb5785abbe2c212dd8bdfa0df3d989",
+  "cases": [
+    {
+      "case": "control_git_history",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": true,
+        "send_ok": true,
+        "http_status": 200
+      },
+      "received_bytes": 49,
+      "secret_received": true,
+      "expectation_met": true,
+      "elapsed_ms": 284.69
+    },
+    {
+      "case": "control_native_blob",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": true,
+        "send_ok": true,
+        "http_status": 200
+      },
+      "received_bytes": 49,
+      "secret_received": true,
+      "expectation_met": true,
+      "elapsed_ms": 263.01
+    },
+    {
+      "case": "control_child_history",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": true,
+        "send_ok": true,
+        "http_status": 200
+      },
+      "received_bytes": 49,
+      "secret_received": true,
+      "expectation_met": true,
+      "elapsed_ms": 308.78
+    },
+    {
+      "case": "history_git_denied",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": false,
+        "send_ok": false,
+        "error_class": "CalledProcessError",
+        "error_errno": null,
+        "error_phase": "read",
+        "child_stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+      },
+      "received_bytes": 0,
+      "secret_received": false,
+      "expectation_met": true,
+      "elapsed_ms": 266.32
+    },
+    {
+      "case": "history_native_blob_denied",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": false,
+        "send_ok": false,
+        "error_class": "PermissionError",
+        "error_errno": 1,
+        "error_phase": "read"
+      },
+      "received_bytes": 0,
+      "secret_received": false,
+      "expectation_met": true,
+      "elapsed_ms": 246.31
+    },
+    {
+      "case": "history_child_denied",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": false,
+        "send_ok": false,
+        "error_class": "CalledProcessError",
+        "error_errno": null,
+        "error_phase": "read",
+        "child_stderr": ", in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted: '<synthetic-root>/repo/.git/objects/bc/245f2c02b69bd10a5908bcf5617b7d30d50fcb'\n"
+      },
+      "received_bytes": 0,
+      "secret_received": false,
+      "expectation_met": true,
+      "elapsed_ms": 310.19
+    },
+    {
+      "case": "current_source_allowed",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": true,
+        "send_ok": true,
+        "http_status": 200
+      },
+      "received_bytes": 23,
+      "secret_received": false,
+      "expectation_met": true,
+      "elapsed_ms": 257.47
+    },
+    {
+      "case": "control_second_endpoint",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": true,
+        "send_ok": true,
+        "http_status": 200
+      },
+      "received_bytes": 23,
+      "secret_received": false,
+      "expectation_met": true,
+      "elapsed_ms": 258.59
+    },
+    {
+      "case": "unapproved_endpoint_denied",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": true,
+        "send_ok": false,
+        "http_status": 403
+      },
+      "received_bytes": 0,
+      "secret_received": false,
+      "expectation_met": true,
+      "elapsed_ms": 258.86
+    },
+    {
+      "case": "direct_connect_bypass_denied",
+      "runtime_exit": 0,
+      "client": {
+        "read_ok": true,
+        "send_ok": false,
+        "error_class": "PermissionError",
+        "error_errno": 1,
+        "error_phase": "send"
+      },
+      "received_bytes": 0,
+      "secret_received": false,
+      "expectation_met": true,
+      "elapsed_ms": 255.62
+    }
+  ],
+  "all_expectations_met": true,
+  "installation": "temporary directory only, official npm registry, --ignore-scripts; no global/project dependency changes",
+  "limitations": [
+    "Synthetic Python client, not real AI client",
+    "Loopback HTTP only; no TLS or public DNS/domain test",
+    "Read restrictions and proxy-mediated port policy tested; no ES/NE",
+    "Runtime startup time included; tiny samples not performance benchmark"
+  ]
+}

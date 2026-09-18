@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "version": "0.1.2-dev",
+  "binary_sha256": "d5f93ba20b0ade05004c15941d084ad62067f677b59b0485da2023073dd6fe56",
+  "binary_unchanged": true,
+  "poll_interval_seconds": 2,
+  "measurements": [
+    {
+      "phase": "manifest",
+      "recorded_after_seconds": 2.007179500069469
+    },
+    {
+      "phase": "attempt",
+      "recorded_after_seconds": 1.985151374945417
+    },
+    {
+      "phase": "separate_acceptance",
+      "recorded_after_seconds": 2.0055226248223335
+    }
+  ],
+  "events_recorded": 7,
+  "false_git_acceptance_events": 0,
+  "summary_redacted": true,
+  "monitor_exit": 0,
+  "verification_passed": true,
+  "real_zcode_started": false,
+  "real_repository_or_secrets_read": false,
+  "network_operations_requested": false,
+  "notifications_sent": false,
+  "scope": "Synthetic metadata replay; latency is local persistence, not OS notification delivery or pre-upload interception."
+}

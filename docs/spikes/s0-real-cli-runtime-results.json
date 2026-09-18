@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "experiment": "real_cli_local_stub",
+  "client": "codex-cli 0.137.0",
+  "backend": "sandbox-runtime",
+  "runtime": {
+    "name": "@anthropic-ai/sandbox-runtime",
+    "version": "0.0.76",
+    "integrity": "sha512-wIC++TvCopRPJcX/v/PCp/SjYOWk/cAVq+VF9v6E3WwkriFP9uu2wvPJ2E+wMrNa3i3h3ew9zTpHcmyGLBKo0w==",
+    "package_lock_sha256": "234aca939a93997023fb47801df25bdfedcb5785abbe2c212dd8bdfa0df3d989"
+  },
+  "platform": "macOS-26.3-arm64-arm-64bit",
+  "date": "2026-09-18",
+  "provider": "deterministic Responses stub, no real model or provider account",
+  "proxy_strategy": "SRT injects its policy proxy; host proxy variables point only to nonforwarding stub",
+  "safety": {
+    "network": "SRT strictAllowlist contains only stub literal 127.0.0.1:port",
+    "user_home": "outer deny file-read* and file-write*",
+    "config_auth": "fresh HOME/CODEX_HOME + --ignore-user-config + --ignore-rules",
+    "fixtures": "temporary synthetic repository and scripts; removed after run"
+  },
+  "limitations": [
+    "Not a ZCode GUI test or vendor model test",
+    "Experimental backend integration only; no product launcher or system extension validated",
+    "Only an isolated fresh CLI process tree is tested",
+    "Allowed source code reaches the approved provider endpoint by design"
+  ],
+  "previous_experiments": [
+    {
+      "experiment": "real_cli_local_stub",
+      "proxy_strategy": "SRT injects its policy proxy; host proxy variables point only to nonforwarding stub",
+      "all_expectations_met": false,
+      "cases": [
+        {
+          "case": "history_open_control",
+          "status": "incomplete",
+          "returncode": 1,
+          "client_tool_cycle_completed": false,
+          "system_proxy_interception_observed": false,
+          "synthetic_secret_reached_stub": false,
+          "received_request_count": 0
+        },
+        {
+          "case": "history_blocked",
+          "status": "incomplete",
+          "returncode": 1,
+          "client_tool_cycle_completed": false,
+          "system_proxy_interception_observed": false,
+          "synthetic_secret_reached_stub": false,
+          "received_request_count": 0
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "case": "history_open_control",
+      "history_denial_enabled": false,
+      "returncode": 0,
+      "timed_out": false,
+      "elapsed_s": 0.993,
+      "selected_tool": "exec_command",
+      "stub_error": null,
+      "proxy_interception_observed": true,
+      "system_proxy_interception_observed": false,
+      "status": "passed",
+      "client_tool_cycle_completed": true,
+      "synthetic_secret_reached_stub": true,
+      "normal_task_capabilities": {
+        "CURRENT_READ_OK": true,
+        "EDIT_OK": true,
+        "TESTS_OK": true
+      },
+      "expectation_met": true,
+      "requests": [
+        {
+          "path": "/v1/responses",
+          "model": "gpt-5.4",
+          "contains_synthetic_secret": false,
+          "function_outputs": [],
+          "tool_names": [
+            "exec_command",
+            "write_stdin",
+            "update_plan",
+            "request_user_input",
+            "apply_patch",
+            "view_image"
+          ]
+        },
+        {
+          "path": "/v1/responses",
+          "model": "gpt-5.4",
+          "contains_synthetic_secret": true,
+          "function_outputs": [
+            "Chunk ID: b87f04\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 44\nOutput:\nCURRENT_READ_OK\nEDIT_OK\nTESTS_OK\nGIT_READ_RC=0\n<SYNTHETIC_SECRET>\n\nDIRECT_READ_OK=<SYNTHETIC_SECRET>\n"
+          ],
+          "tool_names": [
+            "exec_command",
+            "write_stdin",
+            "update_plan",
+            "request_user_input",
+            "apply_patch",
+            "view_image"
+          ]
+        }
+      ],
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"<SYNTHETIC_THREAD_ID>\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -c '/usr/bin/python3 -I <TEMP>/history_open_control/synthetic_task.py'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -c '/usr/bin/python3 -I <TEMP>/history_open_control/synthetic_task.py'\",\"aggregated_output\":\"CURRENT_READ_OK\\nEDIT_OK\\nTESTS_OK\\nGIT_READ_RC=0\\n<SYNTHETIC_SECRET>\\n\\nDIRECT_READ_OK=<SYNTHETIC_SECRET>\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"agent_message\",\"text\":\"LOCAL_STUB_DONE\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2,\"cached_input_tokens\":0,\"output_tokens\":2,\"reasoning_output_tokens\":0}}\n",
+      "stderr": "Reading additional input from stdin...\n2026-09-18T12:53:54.660976Z  INFO codex_client::custom_ca: using system root certificates because no CA override environment variable was selected codex_ca_certificate_configured=false ssl_cert_file_configured=false\n2026-09-18T12:53:54.661387Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: starting new connection: http://127.0.0.1:51087/\n2026-09-18T12:53:54.661399Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: proxy(http://localhost:51089/) intercepts 'http://127.0.0.1:51087/'\n2026-09-18T12:53:54.667911Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: codex_client::default_client: Request completed method=POST url=http://127.0.0.1:51087/v1/responses status=200 OK headers={\"server\": \"BaseHTTP/0.6 Python/3.9.6\", \"date\": \"Fri, 18 Sep 2026 12:53:54 GMT\", \"content-type\": \"text/event-stream\", \"cache-control\": \"no-cache\", \"connection\": \"keep-alive\", \"keep-alive\": \"timeout=5\", \"transfer-encoding\": \"chunked\"} version=HTTP/1.1\n2026-09-18T12:53:54.797283Z  INFO codex_client::custom_ca: using system root certificates because no CA override environment variable was selected codex_ca_certificate_configured=false ssl_cert_file_configured=false\n2026-09-18T12:53:54.797855Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: starting new connection: http://127.0.0.1:51087/\n2026-09-18T12:53:54.797866Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: proxy(http://localhost:51089/) intercepts 'http://127.0.0.1:51087/'\n2026-09-18T12:53:54.799845Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: codex_client::default_client: Request completed method=POST url=http://127.0.0.1:51087/v1/responses status=200 OK headers={\"server\": \"BaseHTTP/0.6 Python/3.9.6\", \"date\": \"Fri, 18 Sep 2026 12:53:54 GMT\", \"content-type\": \"text/event-stream\", \"cache-control\": \"no-cache\", \"connection\": \"keep-alive\", \"keep-alive\": \"timeout=5\", \"transfer-encoding\": \"chunked\"} version=HTTP/1.1\n",
+      "git_read_returncode": 0,
+      "direct_read_succeeded": true,
+      "direct_read_permission_denied": false
+    },
+    {
+      "case": "history_blocked",
+      "history_denial_enabled": true,
+      "returncode": 0,
+      "timed_out": false,
+      "elapsed_s": 0.957,
+      "selected_tool": "exec_command",
+      "stub_error": null,
+      "proxy_interception_observed": true,
+      "system_proxy_interception_observed": false,
+      "status": "passed",
+      "client_tool_cycle_completed": true,
+      "synthetic_secret_reached_stub": false,
+      "normal_task_capabilities": {
+        "CURRENT_READ_OK": true,
+        "EDIT_OK": true,
+        "TESTS_OK": true
+      },
+      "expectation_met": true,
+      "requests": [
+        {
+          "path": "/v1/responses",
+          "model": "gpt-5.4",
+          "contains_synthetic_secret": false,
+          "function_outputs": [],
+          "tool_names": [
+            "exec_command",
+            "write_stdin",
+            "update_plan",
+            "request_user_input",
+            "apply_patch",
+            "view_image"
+          ]
+        },
+        {
+          "path": "/v1/responses",
+          "model": "gpt-5.4",
+          "contains_synthetic_secret": false,
+          "function_outputs": [
+            "Chunk ID: b869c6\nWall time: 0.0000 seconds\nProcess exited with code 0\nOriginal token count: 39\nOutput:\nCURRENT_READ_OK\nEDIT_OK\nTESTS_OK\nGIT_READ_RC=128\n\nfatal: not a git repository (or any of the parent directories): .git\n\nDIRECT_READ_ERROR=PermissionError\n"
+          ],
+          "tool_names": [
+            "exec_command",
+            "write_stdin",
+            "update_plan",
+            "request_user_input",
+            "apply_patch",
+            "view_image"
+          ]
+        }
+      ],
+      "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"<SYNTHETIC_THREAD_ID>\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -c '/usr/bin/python3 -I <TEMP>/history_blocked/synthetic_task.py'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -c '/usr/bin/python3 -I <TEMP>/history_blocked/synthetic_task.py'\",\"aggregated_output\":\"CURRENT_READ_OK\\nEDIT_OK\\nTESTS_OK\\nGIT_READ_RC=128\\n\\nfatal: not a git repository (or any of the parent directories): .git\\n\\nDIRECT_READ_ERROR=PermissionError\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"agent_message\",\"text\":\"LOCAL_STUB_DONE\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2,\"cached_input_tokens\":0,\"output_tokens\":2,\"reasoning_output_tokens\":0}}\n",
+      "stderr": "Reading additional input from stdin...\n2026-09-18T12:53:55.743449Z  INFO codex_client::custom_ca: using system root certificates because no CA override environment variable was selected codex_ca_certificate_configured=false ssl_cert_file_configured=false\n2026-09-18T12:53:55.743871Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: starting new connection: http://127.0.0.1:51107/\n2026-09-18T12:53:55.743885Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: proxy(http://localhost:51108/) intercepts 'http://127.0.0.1:51107/'\n2026-09-18T12:53:55.749969Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: codex_client::default_client: Request completed method=POST url=http://127.0.0.1:51107/v1/responses status=200 OK headers={\"server\": \"BaseHTTP/0.6 Python/3.9.6\", \"date\": \"Fri, 18 Sep 2026 12:53:55 GMT\", \"content-type\": \"text/event-stream\", \"cache-control\": \"no-cache\", \"connection\": \"keep-alive\", \"keep-alive\": \"timeout=5\", \"transfer-encoding\": \"chunked\"} version=HTTP/1.1\n2026-09-18T12:53:55.864738Z  INFO codex_client::custom_ca: using system root certificates because no CA override environment variable was selected codex_ca_certificate_configured=false ssl_cert_file_configured=false\n2026-09-18T12:53:55.865139Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: starting new connection: http://127.0.0.1:51107/\n2026-09-18T12:53:55.865149Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: reqwest::connect: proxy(http://localhost:51108/) intercepts 'http://127.0.0.1:51107/'\n2026-09-18T12:53:55.867279Z DEBUG responses.stream_request{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\"}:responses.stream{transport=\"responses_http\" http.method=\"POST\" api.path=\"responses\" turn.has_state=true}:endpoint_session.stream_with{http.method=POST api.path=\"responses\"}: codex_client::default_client: Request completed method=POST url=http://127.0.0.1:51107/v1/responses status=200 OK headers={\"server\": \"BaseHTTP/0.6 Python/3.9.6\", \"date\": \"Fri, 18 Sep 2026 12:53:55 GMT\", \"content-type\": \"text/event-stream\", \"cache-control\": \"no-cache\", \"connection\": \"keep-alive\", \"keep-alive\": \"timeout=5\", \"transfer-encoding\": \"chunked\"} version=HTTP/1.1\n",
+      "git_read_returncode": 128,
+      "direct_read_succeeded": false,
+      "direct_read_permission_denied": true
+    }
+  ],
+  "all_expectations_met": true,
+  "publication_redaction": "Generated synthetic CLI thread identifiers removed; measurements unchanged."
+}

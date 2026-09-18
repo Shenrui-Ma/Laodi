@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0-dev",
+  "binary_sha256": "95b85355f5216b468e3c992621e6cdbd06cd5b23e59e473852f98def6cc96919",
+  "fixtures": [
+    {
+      "fixture": "small_output",
+      "input_bytes": 205,
+      "peak_rss_bytes": 7651328,
+      "hook_exit": 0,
+      "stdout_empty": true,
+      "secret_not_persisted": true
+    },
+    {
+      "fixture": "large_output",
+      "input_bytes": 912213,
+      "peak_rss_bytes": 15450112,
+      "hook_exit": 0,
+      "stdout_empty": true,
+      "secret_not_persisted": true
+    }
+  ],
+  "verification_passed": true,
+  "scope": "macOS time -l for two isolated short-lived hook invocations; no real Agent/client or system notifications; not a bound on concurrent host-spawned processes."
+}

@@ -1,0 +1,31 @@
+name: Checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Test and check
+        run: |
+          make test
+          make check
+      - name: Build
+        run: make build
+      - name: Replay synthetic hooks
+        run: python3 scripts/dev/verify_tool_hooks.py --binary bin/laodi --output /tmp/laodi-hook-results.json

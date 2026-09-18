@@ -1,0 +1,922 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-18T12:32:59.058621+00:00",
+  "scope": "Synthetic single-repository development compatibility only; not real-client isolation certification.",
+  "host": {
+    "system": "Darwin",
+    "macos": "26.3",
+    "machine": "arm64"
+  },
+  "repetitions_per_case_and_mode": 5,
+  "tools": {
+    "python": "/opt/homebrew/Cellar/python@3.13/3.13.13_1/Frameworks/Python.framework/Versions/3.13/bin/python3.13",
+    "git": "/usr/bin/git",
+    "node": "/opt/homebrew/bin/node",
+    "cc": "/usr/bin/cc",
+    "sandbox_exec": "/usr/bin/sandbox-exec"
+  },
+  "policy_template": "(version 1)\n(allow default)\n(deny file-read* file-write* (subpath \"<resolved synthetic repository>/.git\"))\n",
+  "safety": {
+    "synthetic_only": true,
+    "network_calls": false,
+    "dependencies_installed": false,
+    "git_config_home_hooks_signing_isolated": true,
+    "system_settings_changed": false
+  },
+  "method": "Each sample has a fresh two-commit fixture with a history-only synthetic marker, tracked current edit, and untracked new file. Setup is outside timing. Mode order alternates per repetition. Times include subprocess and sandbox-exec launch. Same-mode commands never share a mutable fixture.",
+  "limitations": [
+    "Allows all operations except reads/writes under this one .git path; no network policy is tested.",
+    "No real AI application, GUI helper, existing process, worktree, alternate object store, or IPC escape is tested here.",
+    "Tiny built-in tests require no package installation; framework integration, large builds, source maps and IDE indexing are untested.",
+    "Five samples are a smoke comparison, not a statistically robust performance benchmark; filesystem/compiler caches may influence timings.",
+    "A failing Git command proves a compatibility loss only when its unprotected control succeeds; generic 'not a git repository' is not an independent audit event."
+  ],
+  "results": [
+    {
+      "case": "git_status",
+      "expected": "unprotected succeeds, protected fails",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": false,
+      "median_elapsed_ms": {
+        "unprotected": 12.445,
+        "protected": 17.271
+      },
+      "median_delta_ms": 4.826,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.608,
+            "stdout": " M README.md\n?? new.txt\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.304,
+            "stdout": " M README.md\n?? new.txt\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 13.373,
+            "stdout": " M README.md\n?? new.txt\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.445,
+            "stdout": " M README.md\n?? new.txt\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 10.778,
+            "stdout": " M README.md\n?? new.txt\n",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.478,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.271,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.337,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 16.691,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 16.876,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "git_diff",
+      "expected": "unprotected succeeds, protected fails",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": false,
+      "median_elapsed_ms": {
+        "unprotected": 12.065,
+        "protected": 16.754
+      },
+      "median_delta_ms": 4.689,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 13.104,
+            "stdout": "diff --git a/README.md b/README.md\nindex 068b85e..59ff43f 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-Synthetic compatibility fixture.\n+Synthetic compatibility fixture, current edit.\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.337,
+            "stdout": "diff --git a/README.md b/README.md\nindex 068b85e..59ff43f 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-Synthetic compatibility fixture.\n+Synthetic compatibility fixture, current edit.\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.065,
+            "stdout": "diff --git a/README.md b/README.md\nindex 068b85e..59ff43f 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-Synthetic compatibility fixture.\n+Synthetic compatibility fixture, current edit.\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 10.661,
+            "stdout": "diff --git a/README.md b/README.md\nindex 068b85e..59ff43f 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-Synthetic compatibility fixture.\n+Synthetic compatibility fixture, current edit.\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 10.472,
+            "stdout": "diff --git a/README.md b/README.md\nindex 068b85e..59ff43f 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-Synthetic compatibility fixture.\n+Synthetic compatibility fixture, current edit.\n",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 129,
+            "elapsed_ms": 17.825,
+            "stdout": "",
+            "stderr": "warning: Not a git repository. Use --no-index to compare two paths outside a working tree\nusage: git diff --no-index [<options>] <path> <path>\n\nDiff output format options\n    -p, --patch           generate patch\n    -s, --no-patch        suppress diff output\n    -u                    generate patch\n    -U, --unified[=<n>]   generate diffs with <n> lines context\n    -W, --[no-]function-context\n                          generate diffs with <n> lines context\n    --raw                 generate the diff in raw format\n    --patch-with-raw      synonym for '-p --raw'\n    --patch-with-stat     synonym for '-p --stat'\n    --numstat             machine friendly --stat\n    --shortstat           output only the last line of --stat\n    -X, --dirstat[=<param1>,<param2>...]\n                          output the distribution of relative amount of changes for each sub-directory\n    --cumulative          synonym for --dirstat=cumulative\n    --dirstat-by-file[=<param1>,<param2>...]\n                          synonym for --dirstat=files,<param1>,<param2>...\n    --check               warn if changes introduce conflict markers or whitespace errors\n    --summary             condensed summary such as creations, renames and mode changes\n    --name-only           show only names of changed files\n    --name-status         show only names and status of changed files\n    --stat[=<width>[,<name-width>[,<count>]]]\n                          generate diffstat\n    --stat-width <width>  generate diffstat with a given width\n    --stat-name-width <width>\n                          generate diffstat with a given name width\n    --stat-graph-width <width>\n                          generate diffstat with a given graph width\n    --stat-count <count>  generate diffstat with limited lines\n    --[no-]compact-summary\n                          generate compact summary in diffstat\n    --binary              output a binary diff that can be applied\n    --[no-]full-index     show full pre- and post-image object names on the \"index\" lines\n    --[no-]color[=<when>] show colored diff\n    --ws-error-highlight <kind>\n                          highlight whitespace errors in the 'context', 'old' or 'new' lines in the diff\n    -z                    do not munge pathnames and use NULs as output field terminators in --raw or --numstat\n    --[no-]abbrev[=<n>]   use <n> digits to display object names\n    --src-prefix <prefix> show the given source prefix instead of \"a/\"\n    --dst-prefix <prefix> show the given destination prefix instead of \"b/\"\n    --line-prefix <prefix>\n                          prepend an additional prefix to every line of output\n    --no-prefix           do not show any source or destination prefix\n    --default-prefix      use default prefixes a/ and b/\n    --inter-hunk-context <n>\n                          show context between diff hunks up to the specified number of lines\n    --output-indicator-new <char>\n                          specify the character to indicate a new line instead of '+"
+          },
+          {
+            "exit_code": 129,
+            "elapsed_ms": 16.754,
+            "stdout": "",
+            "stderr": "warning: Not a git repository. Use --no-index to compare two paths outside a working tree\nusage: git diff --no-index [<options>] <path> <path>\n\nDiff output format options\n    -p, --patch           generate patch\n    -s, --no-patch        suppress diff output\n    -u                    generate patch\n    -U, --unified[=<n>]   generate diffs with <n> lines context\n    -W, --[no-]function-context\n                          generate diffs with <n> lines context\n    --raw                 generate the diff in raw format\n    --patch-with-raw      synonym for '-p --raw'\n    --patch-with-stat     synonym for '-p --stat'\n    --numstat             machine friendly --stat\n    --shortstat           output only the last line of --stat\n    -X, --dirstat[=<param1>,<param2>...]\n                          output the distribution of relative amount of changes for each sub-directory\n    --cumulative          synonym for --dirstat=cumulative\n    --dirstat-by-file[=<param1>,<param2>...]\n                          synonym for --dirstat=files,<param1>,<param2>...\n    --check               warn if changes introduce conflict markers or whitespace errors\n    --summary             condensed summary such as creations, renames and mode changes\n    --name-only           show only names of changed files\n    --name-status         show only names and status of changed files\n    --stat[=<width>[,<name-width>[,<count>]]]\n                          generate diffstat\n    --stat-width <width>  generate diffstat with a given width\n    --stat-name-width <width>\n                          generate diffstat with a given name width\n    --stat-graph-width <width>\n                          generate diffstat with a given graph width\n    --stat-count <count>  generate diffstat with limited lines\n    --[no-]compact-summary\n                          generate compact summary in diffstat\n    --binary              output a binary diff that can be applied\n    --[no-]full-index     show full pre- and post-image object names on the \"index\" lines\n    --[no-]color[=<when>] show colored diff\n    --ws-error-highlight <kind>\n                          highlight whitespace errors in the 'context', 'old' or 'new' lines in the diff\n    -z                    do not munge pathnames and use NULs as output field terminators in --raw or --numstat\n    --[no-]abbrev[=<n>]   use <n> digits to display object names\n    --src-prefix <prefix> show the given source prefix instead of \"a/\"\n    --dst-prefix <prefix> show the given destination prefix instead of \"b/\"\n    --line-prefix <prefix>\n                          prepend an additional prefix to every line of output\n    --no-prefix           do not show any source or destination prefix\n    --default-prefix      use default prefixes a/ and b/\n    --inter-hunk-context <n>\n                          show context between diff hunks up to the specified number of lines\n    --output-indicator-new <char>\n                          specify the character to indicate a new line instead of '+"
+          },
+          {
+            "exit_code": 129,
+            "elapsed_ms": 17.854,
+            "stdout": "",
+            "stderr": "warning: Not a git repository. Use --no-index to compare two paths outside a working tree\nusage: git diff --no-index [<options>] <path> <path>\n\nDiff output format options\n    -p, --patch           generate patch\n    -s, --no-patch        suppress diff output\n    -u                    generate patch\n    -U, --unified[=<n>]   generate diffs with <n> lines context\n    -W, --[no-]function-context\n                          generate diffs with <n> lines context\n    --raw                 generate the diff in raw format\n    --patch-with-raw      synonym for '-p --raw'\n    --patch-with-stat     synonym for '-p --stat'\n    --numstat             machine friendly --stat\n    --shortstat           output only the last line of --stat\n    -X, --dirstat[=<param1>,<param2>...]\n                          output the distribution of relative amount of changes for each sub-directory\n    --cumulative          synonym for --dirstat=cumulative\n    --dirstat-by-file[=<param1>,<param2>...]\n                          synonym for --dirstat=files,<param1>,<param2>...\n    --check               warn if changes introduce conflict markers or whitespace errors\n    --summary             condensed summary such as creations, renames and mode changes\n    --name-only           show only names of changed files\n    --name-status         show only names and status of changed files\n    --stat[=<width>[,<name-width>[,<count>]]]\n                          generate diffstat\n    --stat-width <width>  generate diffstat with a given width\n    --stat-name-width <width>\n                          generate diffstat with a given name width\n    --stat-graph-width <width>\n                          generate diffstat with a given graph width\n    --stat-count <count>  generate diffstat with limited lines\n    --[no-]compact-summary\n                          generate compact summary in diffstat\n    --binary              output a binary diff that can be applied\n    --[no-]full-index     show full pre- and post-image object names on the \"index\" lines\n    --[no-]color[=<when>] show colored diff\n    --ws-error-highlight <kind>\n                          highlight whitespace errors in the 'context', 'old' or 'new' lines in the diff\n    -z                    do not munge pathnames and use NULs as output field terminators in --raw or --numstat\n    --[no-]abbrev[=<n>]   use <n> digits to display object names\n    --src-prefix <prefix> show the given source prefix instead of \"a/\"\n    --dst-prefix <prefix> show the given destination prefix instead of \"b/\"\n    --line-prefix <prefix>\n                          prepend an additional prefix to every line of output\n    --no-prefix           do not show any source or destination prefix\n    --default-prefix      use default prefixes a/ and b/\n    --inter-hunk-context <n>\n                          show context between diff hunks up to the specified number of lines\n    --output-indicator-new <char>\n                          specify the character to indicate a new line instead of '+"
+          },
+          {
+            "exit_code": 129,
+            "elapsed_ms": 16.609,
+            "stdout": "",
+            "stderr": "warning: Not a git repository. Use --no-index to compare two paths outside a working tree\nusage: git diff --no-index [<options>] <path> <path>\n\nDiff output format options\n    -p, --patch           generate patch\n    -s, --no-patch        suppress diff output\n    -u                    generate patch\n    -U, --unified[=<n>]   generate diffs with <n> lines context\n    -W, --[no-]function-context\n                          generate diffs with <n> lines context\n    --raw                 generate the diff in raw format\n    --patch-with-raw      synonym for '-p --raw'\n    --patch-with-stat     synonym for '-p --stat'\n    --numstat             machine friendly --stat\n    --shortstat           output only the last line of --stat\n    -X, --dirstat[=<param1>,<param2>...]\n                          output the distribution of relative amount of changes for each sub-directory\n    --cumulative          synonym for --dirstat=cumulative\n    --dirstat-by-file[=<param1>,<param2>...]\n                          synonym for --dirstat=files,<param1>,<param2>...\n    --check               warn if changes introduce conflict markers or whitespace errors\n    --summary             condensed summary such as creations, renames and mode changes\n    --name-only           show only names of changed files\n    --name-status         show only names and status of changed files\n    --stat[=<width>[,<name-width>[,<count>]]]\n                          generate diffstat\n    --stat-width <width>  generate diffstat with a given width\n    --stat-name-width <width>\n                          generate diffstat with a given name width\n    --stat-graph-width <width>\n                          generate diffstat with a given graph width\n    --stat-count <count>  generate diffstat with limited lines\n    --[no-]compact-summary\n                          generate compact summary in diffstat\n    --binary              output a binary diff that can be applied\n    --[no-]full-index     show full pre- and post-image object names on the \"index\" lines\n    --[no-]color[=<when>] show colored diff\n    --ws-error-highlight <kind>\n                          highlight whitespace errors in the 'context', 'old' or 'new' lines in the diff\n    -z                    do not munge pathnames and use NULs as output field terminators in --raw or --numstat\n    --[no-]abbrev[=<n>]   use <n> digits to display object names\n    --src-prefix <prefix> show the given source prefix instead of \"a/\"\n    --dst-prefix <prefix> show the given destination prefix instead of \"b/\"\n    --line-prefix <prefix>\n                          prepend an additional prefix to every line of output\n    --no-prefix           do not show any source or destination prefix\n    --default-prefix      use default prefixes a/ and b/\n    --inter-hunk-context <n>\n                          show context between diff hunks up to the specified number of lines\n    --output-indicator-new <char>\n                          specify the character to indicate a new line instead of '+"
+          },
+          {
+            "exit_code": 129,
+            "elapsed_ms": 14.022,
+            "stdout": "",
+            "stderr": "warning: Not a git repository. Use --no-index to compare two paths outside a working tree\nusage: git diff --no-index [<options>] <path> <path>\n\nDiff output format options\n    -p, --patch           generate patch\n    -s, --no-patch        suppress diff output\n    -u                    generate patch\n    -U, --unified[=<n>]   generate diffs with <n> lines context\n    -W, --[no-]function-context\n                          generate diffs with <n> lines context\n    --raw                 generate the diff in raw format\n    --patch-with-raw      synonym for '-p --raw'\n    --patch-with-stat     synonym for '-p --stat'\n    --numstat             machine friendly --stat\n    --shortstat           output only the last line of --stat\n    -X, --dirstat[=<param1>,<param2>...]\n                          output the distribution of relative amount of changes for each sub-directory\n    --cumulative          synonym for --dirstat=cumulative\n    --dirstat-by-file[=<param1>,<param2>...]\n                          synonym for --dirstat=files,<param1>,<param2>...\n    --check               warn if changes introduce conflict markers or whitespace errors\n    --summary             condensed summary such as creations, renames and mode changes\n    --name-only           show only names of changed files\n    --name-status         show only names and status of changed files\n    --stat[=<width>[,<name-width>[,<count>]]]\n                          generate diffstat\n    --stat-width <width>  generate diffstat with a given width\n    --stat-name-width <width>\n                          generate diffstat with a given name width\n    --stat-graph-width <width>\n                          generate diffstat with a given graph width\n    --stat-count <count>  generate diffstat with limited lines\n    --[no-]compact-summary\n                          generate compact summary in diffstat\n    --binary              output a binary diff that can be applied\n    --[no-]full-index     show full pre- and post-image object names on the \"index\" lines\n    --[no-]color[=<when>] show colored diff\n    --ws-error-highlight <kind>\n                          highlight whitespace errors in the 'context', 'old' or 'new' lines in the diff\n    -z                    do not munge pathnames and use NULs as output field terminators in --raw or --numstat\n    --[no-]abbrev[=<n>]   use <n> digits to display object names\n    --src-prefix <prefix> show the given source prefix instead of \"a/\"\n    --dst-prefix <prefix> show the given destination prefix instead of \"b/\"\n    --line-prefix <prefix>\n                          prepend an additional prefix to every line of output\n    --no-prefix           do not show any source or destination prefix\n    --default-prefix      use default prefixes a/ and b/\n    --inter-hunk-context <n>\n                          show context between diff hunks up to the specified number of lines\n    --output-indicator-new <char>\n                          specify the character to indicate a new line instead of '+"
+          }
+        ]
+      }
+    },
+    {
+      "case": "git_log",
+      "expected": "unprotected succeeds, protected fails",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": false,
+      "median_elapsed_ms": {
+        "unprotected": 12.407,
+        "protected": 16.821
+      },
+      "median_delta_ms": 4.414,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.918,
+            "stdout": "8acb00a Remove synthetic marker\n33b6a23 Synthetic historical fixture\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.407,
+            "stdout": "8acb00a Remove synthetic marker\n33b6a23 Synthetic historical fixture\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.083,
+            "stdout": "8acb00a Remove synthetic marker\n33b6a23 Synthetic historical fixture\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 13.48,
+            "stdout": "8acb00a Remove synthetic marker\n33b6a23 Synthetic historical fixture\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 11.479,
+            "stdout": "8acb00a Remove synthetic marker\n33b6a23 Synthetic historical fixture\n",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 128,
+            "elapsed_ms": 16.821,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 16.232,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.764,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.491,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 14.05,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "git_show_history",
+      "expected": "unprotected succeeds, protected fails",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": false,
+      "median_elapsed_ms": {
+        "unprotected": 12.236,
+        "protected": 17.137
+      },
+      "median_delta_ms": 4.901,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.236,
+            "stdout": "LAODI_SYNTHETIC_HISTORY_ONLY_COMPATIBILITY_42\n",
+            "stderr": "",
+            "history_marker_observed": true
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 13.361,
+            "stdout": "LAODI_SYNTHETIC_HISTORY_ONLY_COMPATIBILITY_42\n",
+            "stderr": "",
+            "history_marker_observed": true
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 13.001,
+            "stdout": "LAODI_SYNTHETIC_HISTORY_ONLY_COMPATIBILITY_42\n",
+            "stderr": "",
+            "history_marker_observed": true
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 11.948,
+            "stdout": "LAODI_SYNTHETIC_HISTORY_ONLY_COMPATIBILITY_42\n",
+            "stderr": "",
+            "history_marker_observed": true
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 10.894,
+            "stdout": "LAODI_SYNTHETIC_HISTORY_ONLY_COMPATIBILITY_42\n",
+            "stderr": "",
+            "history_marker_observed": true
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.367,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n",
+            "history_marker_observed": false
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.137,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n",
+            "history_marker_observed": false
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.039,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n",
+            "history_marker_observed": false
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.219,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n",
+            "history_marker_observed": false
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 14.825,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n",
+            "history_marker_observed": false
+          }
+        ]
+      }
+    },
+    {
+      "case": "git_add",
+      "expected": "unprotected succeeds, protected fails",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": false,
+      "median_elapsed_ms": {
+        "unprotected": 12.967,
+        "protected": 17.098
+      },
+      "median_delta_ms": 4.131,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.548,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 13.274,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.967,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 13.498,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 12.332,
+            "stdout": "",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.403,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.126,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 16.207,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.098,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 14.572,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "git_commit",
+      "expected": "unprotected succeeds, protected fails",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": false,
+      "median_elapsed_ms": {
+        "unprotected": 19.866,
+        "protected": 16.808
+      },
+      "median_delta_ms": -3.058,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 15.798,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 20.259,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 20.529,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 19.866,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 19.606,
+            "stdout": "",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 128,
+            "elapsed_ms": 16.808,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.279,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 16.383,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 17.112,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          },
+          {
+            "exit_code": 128,
+            "elapsed_ms": 13.975,
+            "stdout": "",
+            "stderr": "fatal: not a git repository (or any of the parent directories): .git\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "current_source_read",
+      "expected": "both modes succeed",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": true,
+      "median_elapsed_ms": {
+        "unprotected": 20.106,
+        "protected": 25.331
+      },
+      "median_delta_ms": 5.225,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 17.653,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 20.106,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 19.942,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 20.284,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 21.687,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 25.776,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 25.215,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 25.331,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 26.269,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 23.428,
+            "stdout": "current source readable\n",
+            "stderr": ""
+          }
+        ]
+      }
+    },
+    {
+      "case": "current_source_edit",
+      "expected": "both modes succeed",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": true,
+      "median_elapsed_ms": {
+        "unprotected": 20.161,
+        "protected": 26.447
+      },
+      "median_delta_ms": 6.286,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 18.38,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 21.068,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 20.285,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 20.161,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 18.411,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 26.481,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 26.447,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 27.782,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 25.969,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 23.985,
+            "stdout": "current source edited\n",
+            "stderr": ""
+          }
+        ]
+      }
+    },
+    {
+      "case": "python_unit_tests",
+      "expected": "both modes succeed",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": true,
+      "median_elapsed_ms": {
+        "unprotected": 32.685,
+        "protected": 37.911
+      },
+      "median_delta_ms": 5.226,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 49.075,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 32.685,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 31.405,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 28.206,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 33.233,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 39.96,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 38.001,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 37.834,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 35.568,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 37.911,
+            "stdout": "",
+            "stderr": "test_add (test_calc.TestCalc.test_add) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+          }
+        ]
+      }
+    },
+    {
+      "case": "node_unit_tests",
+      "expected": "both modes succeed",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": true,
+      "median_elapsed_ms": {
+        "unprotected": 109.988,
+        "protected": 114.512
+      },
+      "median_delta_ms": 4.524,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 111.259,
+            "stdout": "✔ add (0.486209ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 59.972416\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 99.855,
+            "stdout": "✔ add (0.469375ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 54.565375\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 109.988,
+            "stdout": "✔ add (0.510791ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 59.55525\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 110.154,
+            "stdout": "✔ add (0.503584ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 60.619792\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 102.674,
+            "stdout": "✔ add (0.475541ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 55.2595\n",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 115.56,
+            "stdout": "✔ add (0.526708ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 60.119125\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 114.512,
+            "stdout": "✔ add (0.575417ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 60.04325\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 114.869,
+            "stdout": "✔ add (0.483458ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 59.00825\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 113.905,
+            "stdout": "✔ add (0.473166ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 58.656458\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 111.959,
+            "stdout": "✔ add (0.490708ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 58.872667\n",
+            "stderr": ""
+          }
+        ]
+      }
+    },
+    {
+      "case": "c_compile_and_execute",
+      "expected": "both modes succeed",
+      "expectation_met": true,
+      "controls_all_succeeded": true,
+      "protected_all_succeeded": true,
+      "median_elapsed_ms": {
+        "unprotected": 274.711,
+        "protected": 237.778
+      },
+      "median_delta_ms": -36.933,
+      "samples": {
+        "unprotected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 914.106,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 274.711,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 254.5,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 547.347,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 216.147,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          }
+        ],
+        "protected": [
+          {
+            "exit_code": 0,
+            "elapsed_ms": 237.778,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 242.012,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 219.333,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 222.563,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          },
+          {
+            "exit_code": 0,
+            "elapsed_ms": 240.355,
+            "stdout": "compiled and executed: 42\n",
+            "stderr": ""
+          }
+        ]
+      }
+    }
+  ],
+  "versions": {
+    "python": [
+      "Python 3.13.13"
+    ],
+    "git": [
+      "git version 2.50.1 (Apple Git-155)"
+    ],
+    "node": [
+      "v24.14.0"
+    ],
+    "cc": [
+      "Apple clang version 17.0.0 (clang-1700.6.4.2)",
+      "Target: arm64-apple-darwin25.3.0"
+    ]
+  },
+  "verification_passed": true,
+  "cases_executed": 11,
+  "optional_cases_skipped": []
+}
