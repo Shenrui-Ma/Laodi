@@ -381,7 +381,10 @@ func openHookInbox(stateDir string, create bool) (*os.Root, error) {
 	if !before.IsDir() || before.Mode().Perm() != 0700 {
 		return nil, errHookInboxUnavailable
 	}
-	root, err := parent.OpenRoot(hookInboxName)
+	// Go 1.25 gives a nested Root only its relative child name. Our Unix
+	// no-follow file opener and lock use Root.Name(), so bind an absolute
+	// name explicitly and keep verifying it against the already-open parent.
+	root, err := os.OpenRoot(filepath.Join(parent.Name(), hookInboxName))
 	if err != nil {
 		return nil, err
 	}

@@ -13,6 +13,18 @@ import (
 	"time"
 )
 
+func TestHookInboxRootNameIsAbsoluteAcrossSupportedGoVersions(t *testing.T) {
+	stateDir := filepath.Join(t.TempDir(), "state")
+	root, err := openHookInbox(stateDir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if !filepath.IsAbs(root.Name()) || filepath.Base(root.Name()) != hookInboxName {
+		t.Fatalf("no-follow opens and locks require a stable absolute root name: %q", root.Name())
+	}
+}
+
 func inboxInspection(id string) HookInspection {
 	return HookInspection{
 		Adapter: "zcode", EventName: "PostToolUse", SessionID: "session-sensitive-" + id, ToolUseID: "tool-sensitive-" + id,
