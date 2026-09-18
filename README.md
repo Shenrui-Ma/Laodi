@@ -2,19 +2,18 @@
   <img src="assets/laodi-logo.png" width="112" alt="Laodi-skills 老底标志">
 </p>
 <h1 align="center">Laodi-skills · 老底</h1>
-<p align="center"><strong>AI 安心写，老底替你盯。</strong></p>
 
 <table>
   <tr>
     <td width="29%" align="center" valign="middle">
-      <img src="assets/chat-demo.svg" width="260" alt="概念聊天演示：老底提示发现 Git 历史快照线索，开发任务继续运行">
-      <br><sub>概念演示，非真实日志</sub>
+      <img src="assets/chat-demo.png" width="260" alt="虚构聊天示意，不是真实平台事件或泄露证据">
+      <br><sub>虚构聊天示意，非真实事件</sub>
     </td>
     <td width="39%" align="center" valign="middle">
       <strong>担心自己的 Git 历史<br>被第三方工具悄悄上传？</strong>
-      <br><br>让 Laodi-skills 替你留意。
+      <br><br>Laodi-skills 保护你老底。
       <br><br>一次接入，后台监控。
-      <br>发现线索，及时提醒。
+      <br>有小动作，及时提醒。
     </td>
     <td width="32%" align="center" valign="middle">
       <img src="assets/closure.png" width="300" alt="可露希尔表情插画">
@@ -30,8 +29,8 @@ Laodi-skills 是 AI 编程工具的**本地隐私监测器**。它监测已支�
 
 | 检测范围 | 默认反馈 |
 | --- | --- |
-| ZCode `3.12.3.7463` 的 Git 对象、LFS、普通工作区及附加配置快照 | 记录新线索并通知；区分清单、上传尝试、客户端接受记录 |
-| ZCode / Claude Code 的 Bash、Read 请求中可识别的敏感文件访问 | 仅记录，不弹通知 |
+| 某APP的已支持快照记录：Git 对象、LFS、普通工作区及附加配置 | 记录新线索并通知；区分清单、上传尝试、客户端接受记录 |
+| 某APP和其他编程工具中，已接入的 Bash、Read 请求里的敏感文件访问 | 仅记录，不弹通知 |
 | 已接入工具的输出中出现疑似令牌、私钥或凭据赋值 | 保存脱敏记录并通知；不认定已上传 |
 | 持续解析异常、读取失败或事件队列缺口 | 记录覆盖缺口并限频提醒 |
 
@@ -52,14 +51,12 @@ make build
 ./bin/laodi check
 ```
 
-`check` 执行一次 ZCode 快照检查。不存在支持的证据目录时会明确显示未覆盖，而非宣称安全。
+`check` 执行一次已支持的快照记录检查。不存在支持的证据目录时会明确显示未覆盖，而非宣称安全。
 
-按使用的客户端选择接入命令；去掉 `--apply` 可先查看变更计划。安装器保留其他已有配置。
+按使用的编程工具选择适配器，具体标识和命令以本机帮助及[接入说明](docs/TOOL-HOOKS.md)为准。安装器保留其他已有配置；实际接入时加 `--apply`，否则只预览。
 
 ```sh
-./bin/laodi hooks install --adapter zcode --apply
-# 使用 Claude Code 时：
-./bin/laodi hooks install --adapter claude-code --apply
+./bin/laodi hooks --help
 ```
 
 授权系统通知，然后安装当前用户的后台服务：
@@ -70,7 +67,7 @@ make build
   --notifier "$PWD/platform/macos/notifier/build/LaodiNotify.app/Contents/MacOS/LaodiNotify"
 ```
 
-**只使用 Claude Code 时，在上面的 `setup` 命令中加上 `--hooks-only`**，跳过 ZCode 快照巡检。首次接入后，请在后续操作中保持相同的运行模式和状态目录。`setup` 去掉 `--apply` 同样只预览。
+**只需要工具输出检测时，在上面的 `setup` 命令中加上 `--hooks-only`**，跳过快照巡检。首次接入后，请在后续操作中保持相同的运行模式和状态目录。`setup` 去掉 `--apply` 同样只预览。
 
 查询状态与记录：
 
@@ -87,9 +84,9 @@ make build
 ## 架构
 
 ```text
-ZCode 快照文件 ─────────────────────┐
+已支持的快照文件 ───────────────────┐
                                   ↓
-ZCode / Claude Code 异步 Hook → 私有事件队列 → Go 守护进程
+已接入编程工具的异步 Hook → 私有事件队列 → Go 守护进程
                                               ├─ 脱敏记录 → CLI / Skill 查询
                                               └─ macOS 通知辅助程序
 ```
@@ -104,19 +101,23 @@ ZCode / Claude Code 异步 Hook → 私有事件队列 → Go 守护进程
 
 ## 卸载
 
-仅对已安装的适配器执行对应命令，再移除后台服务；去掉 `--apply` 可预览。卸载保留本地事件记录。
+先按照 `hooks --help` 移除已安装的适配器，再移除后台服务；去掉 `--apply` 可预览。卸载保留本地事件记录。
 
 ```sh
-./bin/laodi hooks uninstall --adapter zcode --apply
-./bin/laodi hooks uninstall --adapter claude-code --apply
+./bin/laodi hooks --help
 ./bin/laodi uninstall --apply
 ```
+
+## TODO
+
+- [ ] Windows 端：后台运行、通知与适配器接入。
+- [ ] 更多编程工具和事件类型。
+- [ ] 纯内存上传观测与更完整的覆盖验证。
 
 ## 文档
 
 - [工具 Hook：接入协议、检测规则与隐私边界](docs/TOOL-HOOKS.md)
 - [系统通知：授权、状态与送达边界](docs/NOTIFICATIONS.md)
-- [ZCode 公开案例：原始证据与覆盖矩阵](docs/spikes/ZCODE-PUBLIC-CASES.md)
 - [检测扩展：后续适配与纯内存上传 TODO](docs/DETECTION-EXTENSIONS.md)
 
 ## 许可证
