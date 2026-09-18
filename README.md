@@ -12,11 +12,12 @@
 <p>一次接入，后台监控。</p>
 <p>有小动作，及时提醒。</p>
 
-<br clear="all">
-
-<p align="center">
-  <img src="assets/closure.png" width="480" alt="可露希尔表情插画">
+<p align="right">
+  <br><br><br><br>
+  <img src="assets/closure.png" width="400" alt="可露希尔表情插画">
 </p>
+
+<br clear="all">
 
 Laodi-skills 是 AI 编程工具的**本地隐私监测器**。它监测已支持的仓库快照和上传线索，检查工具输出中的疑似凭据，通过系统通知提醒，并提供可供 Agent 查询的脱敏记录。
 
