@@ -6,6 +6,7 @@
   <key>CFBundleName</key><string>LaodiNotify</string>
   <key>CFBundleDisplayName</key><string>老底</string>
   <key>CFBundleExecutable</key><string>LaodiNotify</string>
+  <key>CFBundleIconFile</key><string>Laodi.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>0.3.0</string>
   <key>CFBundleShortVersionString</key><string>0.3.0</string>

@@ -73,6 +73,7 @@ git ls-files skills/laodi | while IFS= read -r release_skill; do
   cp "$release_skill" "$release_bundle/$release_skill"
 done
 cp LICENSE "$release_bundle/LICENSE"
+cp assets/README.md "$release_bundle/ASSETS.md"
 cp scripts/release/INSTALL.txt "$release_bundle/INSTALL.txt"
 cp scripts/release/install.command "$release_bundle/install.command"
 cp scripts/release/uninstall.command "$release_bundle/uninstall.command"
