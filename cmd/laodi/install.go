@@ -45,7 +45,7 @@ func runDistribution(action string, args []string) error {
 		if *format == "json" {
 			return json.NewEncoder(os.Stdout).Encode(plan)
 		}
-		fmt.Printf("老底 · %s预览\n固定安装位置: %s\n已发现适配工具: %d\n本次不修改配置、不注册服务、不请求通知权限。\n", action, plan.RuntimeDir, len(plan.Adapters))
+		fmt.Printf("老底 · %s预览\n固定安装位置: %s\n已发现适配工具: %d\n将更新现有程序: %t\n有待恢复的更新: %t\n本次不修改配置、不注册服务、不请求通知权限。\n", action, plan.RuntimeDir, len(plan.Adapters), plan.Upgrade, plan.PendingRecovery)
 		return nil
 	}
 	var result laodi.DistributionResult
@@ -63,11 +63,14 @@ func runDistribution(action string, args []string) error {
 		}
 	} else {
 		if action == "install" {
+			if result.Updated {
+				fmt.Println("老底程序已更新。")
+			}
 			fmt.Printf("老底 · 安装结果\n程序已复制到固定位置: %t\n已接入工具: %d\n后台服务已注册: %t\n通知状态: %s\n", result.RuntimeInstalled, len(result.HookAdapters), result.ServiceInstalled, distributionNotificationLabel(result.NotificationStatus))
 			if result.ServiceInstalled {
 				fmt.Println("当前Agent任务保持运行；工具事件接入请在下一次新会话验证。")
 			}
-			fmt.Printf("程序位置: %s\n可用命令: status、incidents、remove。\n", plan.Executable)
+			fmt.Printf("程序位置: %s\n可用命令: update、status、incidents、remove。\n", plan.Executable)
 		} else {
 			fmt.Println("老底 · 移除结果：仅处理自有接入，程序与历史记录保留。")
 		}

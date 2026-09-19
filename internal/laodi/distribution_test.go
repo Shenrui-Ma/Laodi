@@ -221,7 +221,7 @@ func TestDistributionHooksOnlyAndNotificationOptOut(t *testing.T) {
 }
 
 func TestDistributionRejectsUnsafeOrForeignPayloads(t *testing.T) {
-	for _, scenario := range []string{"source-symlink", "source-special", "missing-notifier", "foreign-runtime", "foreign-service", "foreign-hooks", "changed-source", "changed-runtime"} {
+	for _, scenario := range []string{"source-symlink", "source-special", "missing-notifier", "foreign-runtime", "foreign-service", "foreign-hooks", "changed-runtime"} {
 		t.Run(scenario, func(t *testing.T) {
 			options := distributionFixture(t)
 			state := filepath.Join(options.Home, "Library", "Application Support", "Laodi-skills")
@@ -383,7 +383,7 @@ func TestDistributionPermissionTimeoutRechecksWithoutRequestingAgain(t *testing.
 	for _, authorization := range []string{"authorized", "denied", "not_determined", "unknown"} {
 		t.Run(authorization, func(t *testing.T) {
 			var calls []string
-			plan := DistributionPlan{Notifier: "/synthetic/LaodiNotify"}
+			plan := DistributionPlan{Notifier: "/synthetic/LaodiNotify", RequestNotifications: true}
 			plan.notifierRunner = func(ctx context.Context, _ string, args ...string) ([]byte, error) {
 				calls = append(calls, args[0])
 				if args[0] == "--request-permission" {

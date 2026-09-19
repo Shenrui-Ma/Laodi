@@ -1,10 +1,12 @@
-一条命令安装，无需手动下载、解压或编译：
+安装和更新使用同一条命令，无需卸载、手动下载或编译：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
 ```
 
 脚本自动下载本Release通用包、验证SHA-256并执行接入。也可手动下载下面的ZIP。
+
+本版支持从`v0.3.0-preview.1`原位升级，并新增`laodi update`。更新保留配置、通知身份和事件记录，仅短暂重启老底监测进程，Agent任务继续运行；启动失败自动回滚，意外中断可在下次更新时恢复。同时包含老底通知图标及通知授权超时处理修正。
 
 下载 `Laodi-skills-<版本>-macos-universal.zip`，Apple Silicon 与 Intel 共用一个包。解压后双击 `install.command`，无需自行构建，也无需 Go、Node.js 或 Python。
 

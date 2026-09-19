@@ -3,6 +3,10 @@ Laodi-skills — macOS 预览版
 适用于 macOS 13 或更新版本，Apple Silicon 与 Intel 使用同一个压缩包。
 无需安装 Go、Node.js 或 Python。无需 sudo。
 
+已安装时，再次执行官网安装命令即可更新，无需先卸载。
+从本版起也可运行固定位置的 laodi update。
+更新保留配置和事件，仅短暂重启老底监测；失败回滚，不重启 Agent。
+
 1. 解压下载的 ZIP，把整个 Laodi-skills 文件夹保留在一起。
 2. 双击 install.command，按终端中的说明完成接入。
    也可以在终端进入该文件夹执行：./laodi install

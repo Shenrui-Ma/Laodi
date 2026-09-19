@@ -1,6 +1,6 @@
-# 预编译包安装
+# 预编译包安装与更新
 
-普通使用者无需构建源码。首个发行包为`v0.3.0-preview.1`，适用于macOS13+，包含Apple Silicon和Intel两种架构。
+普通使用者无需构建源码。当前发行包为`v0.3.0-preview.2`，适用于macOS13+，包含Apple Silicon和Intel两种架构。
 
 ## 命令行接入
 
@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/instal
 curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh -s -- --dry-run
 ```
 
-也可自行从[Release页面](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.1)下载ZIP、校验并运行包内`install.command`，但这不是默认必经步骤。
+也可自行从[Release页面](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.2)下载ZIP、校验并运行包内`install.command`，但这不是默认必经步骤。
 
 安装只作用于当前用户，无需sudo，不重启现有Agent。主程序、通知helper和Skill复制到`~/Library/Application Support/Laodi-skills/runtime`，所以完成安装后可以移动或移除解压文件夹。安装器不改PATH、不自动把Skill放进客户端目录。
 
@@ -29,7 +29,21 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/instal
 
 自动接入仅针对检测到的受支持工具。没有检测到时只安装运行文件并提示未接入；安装成功、后台注册、通知授权和真实回调是不同状态，不会合并成“已全面保护”。旧会话不会被强制重启。
 
-后续版本的通知安装处理：首次出现系统授权时选择是否允许；已拒绝则提示到“系统设置 → 通知 → 老底”开启，不重复请求。通知程序等待60秒，安装器为其保留70秒；请求异常后只重新查询一次状态。运行文件、Hook和服务已安装时，通知失败作为明确警告返回，不将整个安装判为失败。`--format json`仍单独提供`notification_status`及`warnings`，退出码0不代表通知已经开启。此调整尚未包含在`v0.3.0-preview.1`中。
+首次出现系统授权时选择是否允许；已拒绝则提示到“系统设置 → 通知 → 老底”开启，不重复请求。通知程序等待60秒，安装器为其保留70秒；请求异常后只重新查询一次状态。运行文件、Hook和服务已安装时，通知失败作为明确警告返回，不将整个安装判为失败。`--format json`单独提供`notification_status`及`warnings`，退出码0不代表通知已经开启。
+
+## 更新
+
+重新执行上面的安装命令即可更新，包括从`v0.3.0-preview.1`升级。装过新版后也可运行：
+
+```sh
+"$HOME/Library/Application Support/Laodi-skills/runtime/laodi" update
+```
+
+`update --dry-run`下载并校验发行包，只显示计划。`update --version v0.3.0-preview.2`指定官方发行版本。默认使用官方安装脚本推荐的版本，不依赖GitHub的`latest`是否包含预览版。自定义状态目录的安装会沿用当前可执行文件所在的状态目录，也可明确传入`--state-dir`。
+
+更新前验证已安装文件、所有权凭据及实际Hook配置，完整准备新运行目录后使用macOS原子目录交换。已有Hook配置、通知应用身份、事件库及队列保留；只短暂重启老底监测进程，不重启Agent或更改其权限。同一包重复安装不重启监测。监测重启期间，工具事件仍可进入原有有界队列；快照轮询有短暂间隔，不能承诺零观测缺口。
+
+新版监测发布新心跳后才清理旧运行目录。启动或健康检查失败会回滚程序并重启旧监测，不回退事件库；进程意外退出后，下一次安装/更新会根据本地事务记录先恢复再继续。文件被外部修改、所有权不匹配、文件系统不支持原子交换时会拒绝更新并保留诊断材料，不覆盖未知文件。更新本身不再次请求通知权限。
 
 ## 查询与移除
 
@@ -41,7 +55,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/instal
 
 双击`uninstall.command`或运行`./laodi remove`，只移除准确归属老底的Hook和后台服务，保留运行文件与事件历史。`./laodi remove --dry-run`只看计划。
 
-预览版不自动替换已有不同版本或被修改的安装，也不覆盖未知配置。已有源码安装、模式或状态身份不一致时会明确拒绝，避免影响正在工作的任务和历史记录；不要用删除事件库的方式绕过提示。平滑升级属于后续工作。
+命令行更新支持有完整所有权凭据的发行包安装。已有源码安装、模式或状态身份不一致时会明确拒绝；不要用删除事件库的方式绕过提示。仅安装运行文件、尚未接入服务的情况，更新保留这个状态，需要监测时再执行一次安装命令。
 
 ## 下载校验与系统确认
 

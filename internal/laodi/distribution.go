@@ -43,10 +43,13 @@ type DistributionPlan struct {
 	HooksOnly            bool     `json:"hooks_only"`
 	FileCount            int      `json:"file_count"`
 	RequestNotifications bool     `json:"request_notifications"`
+	Upgrade              bool     `json:"upgrade"`
+	PendingRecovery      bool     `json:"pending_recovery"`
 	options              DistributionOptions
 	files                map[string]string
 	serviceRunner        func(context.Context, ...string) error
 	notifierRunner       func(context.Context, string, ...string) ([]byte, error)
+	healthCheck          func(string, time.Time) error
 }
 
 type DistributionResult struct {
@@ -54,6 +57,7 @@ type DistributionResult struct {
 	HookAdapters       []string `json:"hook_adapters"`
 	ServiceInstalled   bool     `json:"service_installed"`
 	NotificationStatus string   `json:"notification_status"`
+	Updated            bool     `json:"updated"`
 	Warnings           []string `json:"warnings,omitempty"`
 }
 
@@ -134,7 +138,17 @@ func PlanDistribution(options DistributionOptions) (DistributionPlan, error) {
 	plan := DistributionPlan{SourceDir: options.SourceDir, StateDir: options.StateDir, RuntimeDir: runtimeDir,
 		Executable: filepath.Join(runtimeDir, "laodi"), Notifier: filepath.Join(runtimeDir, "LaodiNotify.app", "Contents", "MacOS", "LaodiNotify"),
 		Adapters: adapters, App: app, HooksOnly: app == "", FileCount: len(files), RequestNotifications: options.RequestNotifications,
-		options: options, files: files, serviceRunner: runLaunchctl, notifierRunner: runDistributionNotifier}
+		options: options, files: files, serviceRunner: runLaunchctl, notifierRunner: runDistributionNotifier, healthCheck: waitDistributionHealth}
+	if installed, err := ownedDistributionFiles(runtimeDir); err == nil {
+		plan.Upgrade = !reflect.DeepEqual(installed, files)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return DistributionPlan{}, err
+	}
+	if _, err := os.Lstat(filepath.Join(options.StateDir, upgradeJournalName)); err == nil {
+		plan.PendingRecovery = true
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return DistributionPlan{}, err
+	}
 	if err := preflightDistribution(plan); err != nil {
 		return DistributionPlan{}, err
 	}
@@ -360,12 +374,17 @@ func preflightDistribution(plan DistributionPlan) error {
 		return errors.New("runtime has no valid ownership receipt; refusing to overwrite it")
 	}
 	var receipt distributionReceipt
-	if err := json.Unmarshal(data, &receipt); err != nil || receipt.Version != 1 || !reflect.DeepEqual(receipt.Files, plan.files) {
-		return errors.New("runtime differs from this release; automatic replacement is not supported")
+	if err := json.Unmarshal(data, &receipt); err != nil || receipt.Version != 1 {
+		return errors.New("invalid runtime ownership receipt")
 	}
 	installed, err := distributionFiles(plan.RuntimeDir, true)
 	if err != nil || !reflect.DeepEqual(installed, receipt.Files) {
 		return errors.New("installed runtime was edited; refusing to change it")
+	}
+	if plan.PendingRecovery {
+		if _, err := inspectUpgradeJournal(plan); err != nil {
+			return err
+		}
 	}
 	service, err := distributionService(plan)
 	if err != nil {
@@ -443,8 +462,33 @@ func InstallDistribution(plan DistributionPlan) (DistributionResult, error) {
 		return result, err
 	}
 	defer release()
+	// Another installer may have finished while this invocation was acquiring
+	// the management lock. Recompute recovery/update flags under that lock.
+	lockedPlan, err := PlanDistribution(plan.options)
+	if err != nil {
+		return result, err
+	}
+	if !reflect.DeepEqual(lockedPlan.files, plan.files) {
+		return result, errors.New("release source changed while acquiring the installation lock")
+	}
+	lockedPlan.serviceRunner, lockedPlan.notifierRunner, lockedPlan.healthCheck = plan.serviceRunner, plan.notifierRunner, plan.healthCheck
+	plan = lockedPlan
+	if plan.PendingRecovery {
+		if err := recoverDistributionUpgrade(plan); err != nil {
+			return result, err
+		}
+		fresh, err := PlanDistribution(plan.options)
+		if err != nil {
+			return result, err
+		}
+		fresh.serviceRunner, fresh.notifierRunner, fresh.healthCheck = plan.serviceRunner, plan.notifierRunner, plan.healthCheck
+		plan = fresh
+	}
 	if err := preflightDistribution(plan); err != nil {
 		return result, err
+	}
+	if plan.Upgrade {
+		return upgradeDistribution(plan)
 	}
 	if err := installDistributionPayload(plan); err != nil {
 		return result, err
@@ -574,7 +618,7 @@ func distributionNotifications(plan DistributionPlan) (string, error) {
 		}
 	}
 	status, err := call("--status")
-	if err != nil || status != "not_determined" {
+	if err != nil || status != "not_determined" || !plan.RequestNotifications {
 		return status, err
 	}
 	status, err = call("--request-permission")
@@ -630,6 +674,16 @@ func UninstallDistribution(plan DistributionPlan) (DistributionResult, error) {
 		return result, err
 	}
 	defer release()
+	lockedPlan, err := PlanDistribution(plan.options)
+	if err != nil {
+		return result, err
+	}
+	if lockedPlan.PendingRecovery {
+		return result, errors.New("an interrupted update needs recovery; rerun install or update before removing Laodi")
+	}
+	if !reflect.DeepEqual(lockedPlan.files, plan.files) {
+		return result, errors.New("runtime changed while acquiring the removal lock; retry removal")
+	}
 	service, err := distributionService(plan)
 	if err != nil {
 		return result, err

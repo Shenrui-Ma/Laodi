@@ -34,7 +34,7 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测项目快照和数据上
 
 不影响正常 Git 操作和 Agent 长任务，默认无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出只用于本地检测，不作为原文保存，不保存密钥正文。
 
-## 安装
+## 安装和更新
 
 **macOS**：
 
@@ -42,7 +42,9 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测项目快照和数据上
 curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
 ```
 
-[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.1) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
+已安装时会更新，保留配置和事件记录。
+
+[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.2) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
 
 查看状态：
 
