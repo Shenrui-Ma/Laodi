@@ -29,3 +29,5 @@ jobs:
         run: make build
       - name: Replay synthetic hooks
         run: python3 scripts/dev/verify_tool_hooks.py --binary bin/laodi --output /tmp/laodi-hook-results.json
+      - name: Verify command-line bootstrap
+        run: python3 scripts/dev/verify_bootstrap.py --output /tmp/laodi-bootstrap-results.json

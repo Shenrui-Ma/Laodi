@@ -34,6 +34,7 @@ jobs:
         run: |
           make test
           make check
+          python3 scripts/dev/verify_bootstrap.py --output /tmp/laodi-bootstrap-results.json
       - name: Build and verify universal preview
         env:
           RELEASE_TAG: ${{ inputs.version }}
@@ -57,6 +58,7 @@ jobs:
         run: |
           make test
           make check
+          python3 scripts/dev/verify_bootstrap.py --output /tmp/laodi-bootstrap-results.json
       - name: Build and verify universal package
         env:
           RELEASE_TAG: ${{ github.ref_name }}

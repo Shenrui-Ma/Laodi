@@ -2,11 +2,21 @@
 
 普通使用者无需构建源码。首个发行包为`v0.3.0-preview.1`，适用于macOS13+，包含Apple Silicon和Intel两种架构。
 
-## 三步接入
+## 命令行接入
 
-1. 在[Release页面](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.1)下载ZIP并解压。
-2. 双击`install.command`，或在解压目录运行`./laodi install`。
-3. 首次由系统询问通知权限；在后续新会话中验证工具事件接入。
+```sh
+curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
+```
+
+脚本只从本项目的GitHub Release下载，核对该ZIP的唯一SHA-256摘要、检查归档条目后解压到私有临时目录，再运行包内`laodi install`。不依赖Go、Node.js或Python。下载、校验或解压失败时不会继续安装，临时文件会清理。
+
+只想预览可传入`--dry-run`：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh -s -- --dry-run
+```
+
+也可自行从[Release页面](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.1)下载ZIP、校验并运行包内`install.command`，但这不是默认必经步骤。
 
 安装只作用于当前用户，无需sudo，不重启现有Agent。主程序、通知helper和Skill复制到`~/Library/Application Support/Laodi-skills/runtime`，所以完成安装后可以移动或移除解压文件夹。安装器不改PATH、不自动把Skill放进客户端目录。
 
@@ -39,7 +49,7 @@
 shasum -a 256 -c SHA256SUMS
 ```
 
-校验和用于核对下载字节，不等同Apple认可的开发者身份。当前包使用ad-hoc签名，**没有Developer ID签名或Apple公证**；首次运行可能被Gatekeeper阻止。只有确认来源可信且文件未被改动时，再参考[Apple官方说明](https://support.apple.com/102445)处理该应用的打开确认。安装脚本不禁用Gatekeeper、不删除下载隔离属性。
+校验和用于核对下载字节，不等同Apple认可的开发者身份。当前包使用ad-hoc签名，**没有Developer ID签名或Apple公证**；首次运行可能被Gatekeeper阻止。只有确认来源可信且文件未被改动时，再参考[Apple官方说明](https://support.apple.com/102445)处理该应用的打开确认。安装脚本不禁用Gatekeeper、不调用移除下载隔离属性的命令。
 
 ## 发行验证范围
 

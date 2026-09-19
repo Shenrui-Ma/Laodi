@@ -1,3 +1,11 @@
+一条命令安装，无需手动下载、解压或编译：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
+```
+
+脚本自动下载本Release通用包、验证SHA-256并执行接入。也可手动下载下面的ZIP。
+
 下载 `Laodi-skills-<版本>-macos-universal.zip`，Apple Silicon 与 Intel 共用一个包。解压后双击 `install.command`，无需自行构建，也无需 Go、Node.js 或 Python。
 
 - 系统要求：macOS 13 或更新版本。
