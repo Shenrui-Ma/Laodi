@@ -476,8 +476,14 @@ func InstallDistribution(plan DistributionPlan) (DistributionResult, error) {
 	if plan.RequestNotifications {
 		result.NotificationStatus, err = distributionNotifications(plan)
 		if err != nil {
-			result.Warnings = append(result.Warnings, "Monitoring is installed, but notification authorization could not be confirmed. Local incident records remain available.")
-			return result, err
+			result.Warnings = append(result.Warnings, "监测已安装，通知状态暂未确认。可在系统设置 → 通知 → 老底中检查；本地事件仍会记录。")
+			return result, nil
+		}
+		switch result.NotificationStatus {
+		case "denied":
+			result.Warnings = append(result.Warnings, "通知已关闭，监测和本地记录不受影响。需要提醒时，在系统设置 → 通知 → 老底中开启。")
+		case "not_determined":
+			result.Warnings = append(result.Warnings, "通知授权尚未完成，监测和本地记录已就绪。可稍后重新运行安装命令，或在系统设置 → 通知 → 老底中检查。")
 		}
 	}
 	return result, nil
@@ -543,7 +549,9 @@ func distributionNotifications(plan DistributionPlan) (string, error) {
 	call := func(action string) (string, error) {
 		deadline := 12 * time.Second
 		if action == "--request-permission" {
-			deadline = 55 * time.Second
+			// The helper waits up to 60 seconds for the user's response. Leave
+			// enough time for its timeout result and process cleanup to return.
+			deadline = 70 * time.Second
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), deadline)
 		defer cancel()
@@ -569,7 +577,16 @@ func distributionNotifications(plan DistributionPlan) (string, error) {
 	if err != nil || status != "not_determined" {
 		return status, err
 	}
-	return call("--request-permission")
+	status, err = call("--request-permission")
+	if err == nil {
+		return status, nil
+	}
+	// A lost response does not establish denial: the user may have already
+	// made a choice. Query once without opening another permission request.
+	if latest, checkErr := call("--status"); checkErr == nil {
+		return latest, nil
+	}
+	return status, err
 }
 func runDistributionNotifier(ctx context.Context, executable string, args ...string) ([]byte, error) {
 	command := exec.CommandContext(ctx, executable, args...)

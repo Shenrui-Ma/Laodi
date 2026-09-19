@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func distributionFixture(t *testing.T) DistributionOptions {
@@ -373,8 +374,66 @@ func TestDistributionNotificationFailurePreservesInstalledResult(t *testing.T) {
 		return nil, errors.New("synthetic notification failure")
 	}
 	result, err := InstallDistribution(plan)
-	if err == nil || !result.RuntimeInstalled || !result.ServiceInstalled || result.NotificationStatus != "unknown" || len(result.Warnings) < 2 {
+	if err != nil || !result.RuntimeInstalled || !result.ServiceInstalled || result.NotificationStatus != "unknown" || len(result.Warnings) < 2 {
 		t.Fatalf("lost completed phases: %+v %v", result, err)
+	}
+}
+
+func TestDistributionPermissionTimeoutRechecksWithoutRequestingAgain(t *testing.T) {
+	for _, authorization := range []string{"authorized", "denied", "not_determined", "unknown"} {
+		t.Run(authorization, func(t *testing.T) {
+			var calls []string
+			plan := DistributionPlan{Notifier: "/synthetic/LaodiNotify"}
+			plan.notifierRunner = func(ctx context.Context, _ string, args ...string) ([]byte, error) {
+				calls = append(calls, args[0])
+				if args[0] == "--request-permission" {
+					deadline, ok := ctx.Deadline()
+					if !ok || time.Until(deadline) <= 60*time.Second {
+						t.Fatal("installer would kill the helper before its 60-second permission timeout")
+					}
+					return nil, context.DeadlineExceeded
+				}
+				if len(calls) == 1 {
+					return []byte(`{"ok":true,"authorization":"not_determined"}`), nil
+				}
+				if authorization == "unknown" {
+					return nil, errors.New("synthetic status failure")
+				}
+				return json.Marshal(map[string]any{"ok": true, "authorization": authorization})
+			}
+			status, err := distributionNotifications(plan)
+			if status != authorization || (err != nil) != (authorization == "unknown") {
+				t.Fatalf("status=%s error=%v", status, err)
+			}
+			if !reflect.DeepEqual(calls, []string{"--status", "--request-permission", "--status"}) {
+				t.Fatalf("must recheck once without another permission request: %v", calls)
+			}
+		})
+	}
+}
+
+func TestDistributionUnavailableNotificationsExplainHowToContinue(t *testing.T) {
+	for _, authorization := range []string{"authorized", "denied", "not_determined"} {
+		t.Run(authorization, func(t *testing.T) {
+			options := distributionFixture(t)
+			fixtureTool(t, &options, "app")
+			plan := offlineDistributionPlan(t, options)
+			plan.serviceRunner = func(context.Context, ...string) error { return nil }
+			plan.notifierRunner = func(context.Context, string, ...string) ([]byte, error) {
+				return json.Marshal(map[string]any{"ok": true, "authorization": authorization})
+			}
+			result, err := InstallDistribution(plan)
+			if err != nil || !result.ServiceInstalled || result.NotificationStatus != authorization {
+				t.Fatalf("installation must retain its completed state: %+v %v", result, err)
+			}
+			guidance := strings.Join(result.Warnings, "\n")
+			if authorization != "authorized" && !strings.Contains(guidance, "系统设置") {
+				t.Fatal("missing recovery guidance for notification permission")
+			}
+			if authorization == "authorized" && strings.Contains(guidance, "系统设置") {
+				t.Fatal("authorized users must not be told to enable notifications again")
+			}
+		})
 	}
 }
 

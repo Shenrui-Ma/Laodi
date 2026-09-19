@@ -50,6 +50,9 @@ func runDistribution(action string, args []string) error {
 	}
 	var result laodi.DistributionResult
 	if action == "install" {
+		if *format == "text" && plan.RequestNotifications && len(plan.Adapters) > 0 {
+			fmt.Println("正在安装老底。如出现系统通知授权，请选择是否允许提醒。")
+		}
 		result, err = laodi.InstallDistribution(plan)
 	} else {
 		result, err = laodi.UninstallDistribution(plan)
@@ -60,7 +63,7 @@ func runDistribution(action string, args []string) error {
 		}
 	} else {
 		if action == "install" {
-			fmt.Printf("老底 · 安装结果\n程序已复制到固定位置: %t\n已接入工具: %d\n后台服务已注册: %t\n通知状态: %s\n", result.RuntimeInstalled, len(result.HookAdapters), result.ServiceInstalled, result.NotificationStatus)
+			fmt.Printf("老底 · 安装结果\n程序已复制到固定位置: %t\n已接入工具: %d\n后台服务已注册: %t\n通知状态: %s\n", result.RuntimeInstalled, len(result.HookAdapters), result.ServiceInstalled, distributionNotificationLabel(result.NotificationStatus))
 			if result.ServiceInstalled {
 				fmt.Println("当前Agent任务保持运行；工具事件接入请在下一次新会话验证。")
 			}
@@ -73,4 +76,23 @@ func runDistribution(action string, args []string) error {
 		}
 	}
 	return err
+}
+
+func distributionNotificationLabel(status string) string {
+	switch status {
+	case "authorized":
+		return "已开启"
+	case "provisional":
+		return "临时授权"
+	case "denied":
+		return "已关闭"
+	case "not_determined":
+		return "尚未授权"
+	case "not_requested":
+		return "本次未请求授权"
+	case "unknown":
+		return "暂未确认"
+	default:
+		return status
+	}
 }
