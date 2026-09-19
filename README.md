@@ -8,7 +8,7 @@
 </p>
 
 <h3>担心自己的 Git 历史被第三方工具悄悄上传？</h3>
-<p>Laodi-skills 保护你老底。</p>
+<p>Laodi-skills 保护你的 Git 老底。</p>
 <p>一次接入，后台监控。</p>
 <p>有小动作，及时提醒。</p>
 
@@ -19,11 +19,11 @@
 
 <br clear="all">
 
-Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照和上传线索，检查编程工具输出的疑似凭据，通过系统通知提醒，并提供可供 Agent 查询的脱敏记录。
+Laodi-skills 是 AI 编程工具的隐私监控，监测项目快照和数据上传，检查编程工具输出的疑似凭据，系统通知提醒，并提供可供 Agent 查询的脱敏记录。
 
-**当前提供 macOS 预编译通用包，无需自行构建。** 预览版本 `v0.3.0-preview.1`。
+**当前提供 macOS 预编译通用包，无需自行构建。** 
 
-## 能发现什么
+## 作用
 
 | 检测范围 | 默认反馈 |
 | --- | --- |
@@ -36,7 +36,7 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照
 
 ## 一条命令安装
 
-适用于 **macOS 13+，Apple Silicon / Intel 通用**：
+**macOS**：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
@@ -62,10 +62,6 @@ Skill 随包提供，可按需接入；后台检测独立运行。
                                               └─ macOS 通知辅助程序
 ```
 
-## 验证状态
-
-已完成合成证据测试、Go 竞态测试与静态检查；工具接入验证包含 17 次合成 Hook 调用、四路并发、异常输入、截断和重启去重，正常 Git 操作验证通过。
-
 ## 卸载
 
 ```sh
@@ -81,11 +77,6 @@ Skill 随包提供，可按需接入；后台检测独立运行。
 
 - [工具 Hook：接入协议、检测规则与隐私边界](docs/TOOL-HOOKS.md)
 - [系统通知：授权、状态与送达边界](docs/NOTIFICATIONS.md)
-
-<details>
-<summary>开发者：从源码构建与测试</summary>
-
-需要 Go 1.25+ 和 Xcode Command Line Tools；普通使用者直接下载 Release 即可。
 
 ```sh
 git clone https://github.com/Shenrui-Ma/Laodi-skills.git
