@@ -1,0 +1,82 @@
+name: macOS release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for a build-only verification (no publication)'
+        required: true
+        default: 'v0.3.0-preview.1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Test and check
+        run: |
+          make test
+          make check
+      - name: Build and verify universal preview
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        run: sh scripts/release/build-macos.sh "$RELEASE_TAG"
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Test and check
+        run: |
+          make test
+          make check
+      - name: Build and verify universal package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: sh scripts/release/build-macos.sh "$RELEASE_TAG"
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prerelease_flags=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            prerelease_flags=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" \
+            "dist/$RELEASE_TAG/Laodi-skills-$RELEASE_TAG-macos-universal.zip" \
+            "dist/$RELEASE_TAG/SHA256SUMS" \
+            "dist/$RELEASE_TAG/build-info.json" \
+            --verify-tag --title "Laodi-skills $RELEASE_TAG" \
+            --notes-file scripts/release/RELEASE-NOTES.md \
+            "${prerelease_flags[@]}"

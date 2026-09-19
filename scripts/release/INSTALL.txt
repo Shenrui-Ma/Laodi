@@ -1,0 +1,33 @@
+Laodi-skills — macOS 预览版
+
+适用于 macOS 13 或更新版本，Apple Silicon 与 Intel 使用同一个压缩包。
+无需安装 Go、Node.js 或 Python。无需 sudo。
+
+1. 解压下载的 ZIP，把整个 Laodi-skills 文件夹保留在一起。
+2. 双击 install.command，按终端中的说明完成接入。
+   也可以在终端进入该文件夹执行：./laodi install
+3. 在解压目录查询状态：./laodi status
+   或从任意目录运行：
+   "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" status
+
+安装器会将程序复制到用户目录，配置已检测到的支持工具 Hook 与后台监测。
+未发现支持的工具时，仅复制程序并提示尚未接入，不代表监测已经运行。
+Skill 随包提供；安装器不会修改 PATH 或自动向客户端安装 Skill。
+通知需要你授予系统通知权限；专注模式或系统设置可能隐藏提醒。
+检测只覆盖已支持的本地证据和工具事件，不是网络防火墙，不保证发现全部外传。
+
+当前预览版仅作 ad-hoc 签名，没有 Apple Developer ID 签名与公证。
+首次打开可能被 macOS 拦下。核对下载来源后，可在“系统设置 > 隐私与安全性”
+按系统提供的“仍要打开”流程处理。不要关闭 Gatekeeper 或删除下载隔离属性。
+不同系统的可用选项可能不同；无法打开时，请在仓库提交不含隐私的错误描述。
+
+校验下载文件（在 ZIP 与 SHA256SUMS 所在目录执行）：
+  shasum -a 256 -c SHA256SUMS
+
+原生运行、系统通知与具体工具回调的验证范围以该 Release 说明为准。
+Intel 构建产物经过结构和签名检查，不代表已在 Intel 实机验证。
+
+项目：https://github.com/Shenrui-Ma/Laodi-skills
+停止监测并移除老底接入：双击 uninstall.command，或在解压目录运行 ./laodi remove。
+这会移除自有 Hook 和后台服务，并保留本地记录与运行文件。
+更多用法：在解压目录运行 ./laodi --help，或查看仓库 README。

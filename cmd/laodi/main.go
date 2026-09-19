@@ -14,7 +14,7 @@ import (
 	"github.com/Shenrui-Ma/Laodi-skills/internal/laodi"
 )
 
-const version = "0.2.1-dev"
+var version = "0.3.0-dev"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -23,6 +23,9 @@ func main() {
 	}
 }
 func run(args []string) error {
+	if len(args) > 0 && (args[0] == "install" || args[0] == "remove") {
+		return runDistribution(args[0], args[1:])
+	}
 	if len(args) > 0 && args[0] == "hook" {
 		runHook(args[1:], os.Stdin)
 		return nil
@@ -31,7 +34,7 @@ func run(args []string) error {
 		return runHooks(args[1:])
 	}
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		fmt.Println("Laodi-skills — 本地快照线索监测，不阻断 Git 或 Agent。\n\n命令: check | watch | status | incidents | doctor | setup | uninstall | hooks | version\n选项: --root PATH --state-dir PATH --app PATH --build BUILD --format text|json|agent-summary\nwatch: --interval 2s --duration 30s --notifier /path/to/helper [--hooks-only]\n工具适配: hooks install --adapter zcode|claude-code [--apply]；hooks status查看队列\nsetup/uninstall: 默认只预览，--apply 才注册/移除用户级服务（macOS，无需sudo）\n\n当前为开发版。首次扫描只建立既有记录基线。查询不请求通知权限，不改变客户端设置。watch前台退出用 Ctrl-C。")
+		fmt.Println("Laodi-skills — 本地快照线索监测，不阻断 Git 或 Agent。\n\n发行包: install [--dry-run] | remove [--dry-run]\n命令: check | watch | status | incidents | doctor | setup | uninstall | hooks | version\n选项: --root PATH --state-dir PATH --app PATH --build BUILD --format text|json|agent-summary\nwatch: --interval 2s --duration 30s --notifier /path/to/helper [--hooks-only]\n工具适配: hooks install --adapter zcode|claude-code [--apply]；hooks status查看队列\nsetup/uninstall: 默认只预览，--apply 才注册/移除用户级服务（macOS，无需sudo）\n\n当前为开发版。首次扫描只建立既有记录基线。查询不请求通知权限，不改变客户端设置。watch前台退出用 Ctrl-C。")
 		return nil
 	}
 	if args[0] == "version" || args[0] == "--version" {

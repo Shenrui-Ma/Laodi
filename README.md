@@ -21,7 +21,7 @@
 
 Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照和上传线索，检查编程工具输出的疑似凭据，通过系统通知提醒，并提供可供 Agent 查询的脱敏记录。
 
-**当前为 Dev 版，需要一次接入和通知授权。**
+**当前提供 macOS 预编译通用包，无需自行构建。** 预览版本 `v0.3.0-preview.1`。
 
 ## 能发现什么
 
@@ -34,42 +34,28 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照
 
 不影响正常 Git 操作和 Agent 长任务，默认无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出只用于本地检测，不作为原文保存，事件中不保存密钥正文。
 
-## 快速开始
+## 下载与安装
 
-需要 macOS、Go 1.25 或更新版本、Xcode Command Line Tools。
+**[下载 macOS 通用安装包](https://github.com/Shenrui-Ma/Laodi-skills/releases/download/v0.3.0-preview.1/Laodi-skills-v0.3.0-preview.1-macos-universal.zip)** · [Release 与校验文件](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.1)
 
-```sh
-git clone https://github.com/Shenrui-Ma/Laodi-skills.git
-cd Laodi-skills
-make build
-./bin/laodi check
-```
+适用于 **macOS 13+，Apple Silicon / Intel 通用**。
 
-按使用的编程工具选择适配器，具体标识和命令以本机帮助及[接入说明](docs/TOOL-HOOKS.md)为准。安装器保留其他已有配置；实际接入时加 `--apply`，否则只预览。
+1. 下载 ZIP 并解压。
+2. 双击 **`install.command`**。
+3. 按系统提示选择通知权限，在下一次编程工具新会话中使用。
 
-```sh
-./bin/laodi hooks --help
-```
+无需 Go、Node.js、Python 或 sudo。安装器会复制程序到固定用户目录，自动接入检测到的支持工具并注册后台；不会重启当前 Agent 任务。未发现支持工具时会提示尚未接入。
 
-授权系统通知，然后安装当前用户的后台服务：
+预览版尚无 Developer ID 签名与 Apple 公证，首次打开可能需要系统确认。[安装详情与系统提示说明](docs/BINARY-INSTALL.md)
+
+在解压目录查询状态：
 
 ```sh
-./platform/macos/notifier/build/LaodiNotify.app/Contents/MacOS/LaodiNotify --request-permission
-./bin/laodi setup --apply \
-  --notifier "$PWD/platform/macos/notifier/build/LaodiNotify.app/Contents/MacOS/LaodiNotify"
+./laodi status
+./laodi incidents
 ```
 
-**只需要工具输出检测时，在上面的 `setup` 命令中加上 `--hooks-only`**，跳过快照巡检。首次接入后，请在后续操作中保持相同的运行模式和状态目录。`setup` 去掉 `--apply` 同样只预览。
-
-查询状态与记录：
-
-```sh
-./bin/laodi status
-./bin/laodi incidents
-./bin/laodi hooks status
-```
-
-把 [`skills/laodi`](skills/laodi) 放入客户端支持的 Skill 目录，并确保 `laodi` 可在该客户端的 `PATH` 中找到。
+Skill 随包提供，可按需接入；后台检测独立运行。
 
 ## 架构
 
@@ -89,12 +75,13 @@ make build
 
 ## 卸载
 
-先按照 `hooks --help` 移除已安装的适配器，再移除后台服务；去掉 `--apply` 可预览。卸载保留本地事件记录。
+双击 **`uninstall.command`**，或在解压目录执行：
 
 ```sh
-./bin/laodi hooks --help
-./bin/laodi uninstall --apply
+./laodi remove
 ```
+
+只移除老底自己的 Hook 和后台服务，保留本地记录与运行文件。预览版暂不自动覆盖已有不同版本的安装。
 
 ## TODO
 
@@ -105,6 +92,23 @@ make build
 
 - [工具 Hook：接入协议、检测规则与隐私边界](docs/TOOL-HOOKS.md)
 - [系统通知：授权、状态与送达边界](docs/NOTIFICATIONS.md)
+
+<details>
+<summary>开发者：从源码构建与测试</summary>
+
+需要 Go 1.25+ 和 Xcode Command Line Tools；普通使用者直接下载 Release 即可。
+
+```sh
+git clone https://github.com/Shenrui-Ma/Laodi-skills.git
+cd Laodi-skills
+make build
+make test
+make check
+```
+
+[开发说明](docs/DEVELOPMENT.md) · [发布构建](scripts/release)
+
+</details>
 
 ## 许可证
 
