@@ -15,7 +15,7 @@ func runDistribution(action string, args []string) error {
 	dryRun := fs.Bool("dry-run", false, "只查看安装/移除计划，不修改系统或请求通知权限")
 	noNotifications := fs.Bool("no-notifications", false, "安装时不请求系统通知权限")
 	source := fs.String("source-dir", "", "发行包目录；默认当前可执行文件所在目录")
-	stateDir := fs.String("state-dir", "", "本工具状态目录；默认当前用户Library/Application Support下")
+	stateDir := fs.String("state-dir", "", "本工具状态目录；默认当前用户私有应用数据目录")
 	format := fs.String("format", "text", "text or json")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {

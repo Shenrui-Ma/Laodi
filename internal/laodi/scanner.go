@@ -88,7 +88,7 @@ func RootID(s string) string { return digest(s) }
 
 func (s *Scanner) Scan() Report {
 	if s.App != "" {
-		info, e := os.Stat(s.App + "/Contents/Info.plist")
+		info, e := os.Stat(clientMetadataPath(s.App))
 		if e != nil {
 			s.Build = "unknown"
 		} else if !info.ModTime().Equal(s.appStamp) {
@@ -394,11 +394,17 @@ func readDir(root *os.Root, rel string, limit int) ([]os.DirEntry, error) {
 	if !info.IsDir() {
 		return nil, errors.New("not directory")
 	}
+	if err := checkScannerPath(root, rel, info); err != nil {
+		return nil, err
+	}
 	f, err := root.Open(rel)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
+	if err := checkScannerHandle(f, true); err != nil {
+		return nil, err
+	}
 	items, err := f.ReadDir(limit)
 	if err == io.EOF {
 		err = nil
@@ -428,6 +434,9 @@ func (s *Scanner) read(root *os.Root, rel string, artifactType string, seen map[
 	if !info.Mode().IsRegular() {
 		return cachedArtifact{Code: "unsupported_file_type"}
 	}
+	if err := checkScannerPath(root, rel, info); err != nil {
+		return cachedArtifact{Code: "unsupported_file_type"}
+	}
 	if info.Size() > MaxArtifactBytes {
 		return cachedArtifact{Code: "size_limit"}
 	}
@@ -446,6 +455,9 @@ func (s *Scanner) read(root *os.Root, rel string, artifactType string, seen map[
 		return cachedArtifact{Code: "unreadable"}
 	}
 	defer f.Close()
+	if err := checkScannerHandle(f, false); err != nil {
+		return cachedArtifact{Code: "unsupported_file_type"}
+	}
 	opened, e := f.Stat()
 	if e != nil || !os.SameFile(info, opened) || !opened.Mode().IsRegular() {
 		return cachedArtifact{Code: "changed_during_read"}

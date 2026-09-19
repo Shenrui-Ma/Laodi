@@ -7,12 +7,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func testHookConfigPlan(t *testing.T, adapter string) HookConfigPlan {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows client hook install contract is not verified; POSIX configuration tests do not apply")
+	}
 	home := t.TempDir()
 	executable := filepath.Join(home, "laodi")
 	if err := os.WriteFile(executable, []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
@@ -195,6 +199,9 @@ func TestHookUninstallRefusesEditedOwnedEntry(t *testing.T) {
 }
 
 func TestHookShellQuotePreventsExecutionAndVendorInterpolation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell quoting; Windows hook executor contract remains unverified")
+	}
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "must-not-exist")
 	value := "a'b `touch " + marker + "` $(touch " + marker + ") ${CLAUDE_PROJECT_DIR} ${ZCODE_PLUGIN_ROOT}"

@@ -34,11 +34,8 @@ func TestWatchHookEventsAreNotSuppressedAsSnapshotBaseline(t *testing.T) {
 			}
 		}
 	}
-	helper := filepath.Join(t.TempDir(), "notice.sh")
 	calls := filepath.Join(t.TempDir(), "calls")
-	if err := os.WriteFile(helper, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" >> '"+calls+"'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
+	helper := syntheticNotifier(t, calls, "append-args")
 	// No ZCode checkpoint directory exists. Hook events must not make its
 	// continued absence look like a disappeared snapshot directory.
 	scanner := &Scanner{Root: filepath.Join(t.TempDir(), "absent"), Build: KnownBuild}
@@ -116,6 +113,20 @@ func TestHookIncompleteInspectionBecomesVisibleEvent(t *testing.T) {
 	}
 }
 
+func TestHookEncodingGapSurvivesInboxAndState(t *testing.T) {
+	data := filepath.Join(t.TempDir(), "state")
+	if err := SubmitHookInspection(data, InspectHook("claude-code", strings.NewReader("\xff\xfe{\x00}\x00"))); err != nil {
+		t.Fatal(err)
+	}
+	if err := Watch(context.Background(), &Scanner{}, WatchOptions{StateDir: data, Interval: time.Second, Duration: 50 * time.Millisecond, HooksOnly: true}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := LoadState(data)
+	if err != nil || len(st.Events) != 1 || st.Events[0].Kind != "hook_coverage_degraded" || st.Events[0].Counts["input_encoding_unsupported"] != 1 {
+		t.Fatalf("input encoding coverage gap was lost: %+v %v", st, err)
+	}
+}
+
 func TestPartialTruncatedHookKeepsCredentialFindingAndPrioritizesNotice(t *testing.T) {
 	data := filepath.Join(t.TempDir(), "state")
 	payload := `{"hook_event_name":"PostToolUse","tool_name":"Read","session_id":"private-session","tool_use_id":"private-tool","tool_response":{"truncated":true,"content":[{"type":"text","text":"ghp_Q7m2Lp9Rx4Vt8Na3Ks6Yw1Bd5Jc0HfUzEeAi"},{"type":"image","data":"uninspected"}]}}`
@@ -127,25 +138,31 @@ func TestPartialTruncatedHookKeepsCredentialFindingAndPrioritizesNotice(t *testi
 	if err != nil || len(batch.Findings) != 2 || len(batch.Diagnostics) != 0 {
 		t.Fatalf("incomplete output discarded valid credential evidence: %+v %v", batch, err)
 	}
-	helper := filepath.Join(t.TempDir(), "notice.sh")
 	calls := filepath.Join(t.TempDir(), "calls")
-	if err := os.WriteFile(helper, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" >> '"+calls+"'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
+	helper := syntheticNotifier(t, calls, "append-args")
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
 		done <- Watch(ctx, &Scanner{}, WatchOptions{StateDir: data, Interval: time.Second, HooksOnly: true, Notifier: helper})
 	}()
+	watchFinished := false
 	defer func() {
 		cancel()
-		if err := <-done; err != nil {
-			t.Error(err)
+		if !watchFinished {
+			if err := <-done; err != nil {
+				t.Error(err)
+			}
 		}
 	}()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		st, _ := LoadState(data)
+		select {
+		case err := <-done:
+			watchFinished = true
+			t.Fatalf("monitor exited before notifier acknowledgement was persisted: %v", err)
+		default:
+		}
+		st, readErr := LoadState(data)
 		accepted := false
 		for _, event := range st.Events {
 			accepted = accepted || event.Kind == "sensitive_tool_output_detected" && event.Notification == "accepted_by_os"
@@ -154,7 +171,7 @@ func TestPartialTruncatedHookKeepsCredentialFindingAndPrioritizesNotice(t *testi
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("fake notifier acknowledgement not persisted: %+v", st)
+			t.Fatalf("fake notifier acknowledgement not persisted (last read error: %v): %+v", readErr, st)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

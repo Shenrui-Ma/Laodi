@@ -16,6 +16,8 @@ import (
 
 const maxHookConfigBytes = 2 << 20
 
+var ErrWindowsHookContractUnverified = errors.New("Windows hook installation is unavailable: no local client build/executor contract has been verified; no client settings were read or changed")
+
 type HookConfigOptions struct {
 	Adapter, Executable, StateDir, Home string
 }
@@ -47,7 +49,7 @@ type hookConfigReceipt struct {
 
 func PlanHookConfig(options HookConfigOptions) (HookConfigPlan, error) {
 	if runtime.GOOS == "windows" {
-		return HookConfigPlan{}, errors.New("hook configuration currently requires a POSIX shell")
+		return HookConfigPlan{}, ErrWindowsHookContractUnverified
 	}
 	if options.Adapter != "zcode" && options.Adapter != "claude-code" {
 		return HookConfigPlan{}, errors.New("hook adapter must be zcode or claude-code")
@@ -66,7 +68,10 @@ func PlanHookConfig(options HookConfigOptions) (HookConfigPlan, error) {
 		}
 	}
 	if options.StateDir == "" {
-		options.StateDir = filepath.Join(options.Home, "Library", "Application Support", "Laodi-skills")
+		options.StateDir, err = DefaultStateDir(options.Home)
+		if err != nil {
+			return HookConfigPlan{}, err
+		}
 	}
 	for _, path := range []string{options.Home, options.Executable, options.StateDir} {
 		if !filepath.IsAbs(path) || filepath.Clean(path) != path || strings.ContainsAny(path, "\x00\r\n") {

@@ -12,16 +12,6 @@ import (
 	"time"
 )
 
-func DetectBuild(app string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	b, err := exec.CommandContext(ctx, "/usr/bin/plutil", "-extract", "CFBundleVersion", "raw", app+"/Contents/Info.plist").Output()
-	if err != nil {
-		return "unknown"
-	}
-	return strings.TrimSpace(string(b))
-}
-
 type WatchOptions struct {
 	StateDir           string
 	Interval, Duration time.Duration
@@ -43,6 +33,11 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 		return err
 	}
 	defer release()
+	ctx, stopWatch, err := WatchContext(ctx, opts.StateDir)
+	if err != nil {
+		return err
+	}
+	defer stopWatch()
 	state, err := LoadState(opts.StateDir)
 	if err != nil {
 		return err

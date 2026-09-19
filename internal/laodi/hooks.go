@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 const HookParserID = "tool-hooks-v1"
@@ -61,6 +62,9 @@ func InspectHook(adapter string, input io.Reader) HookInspection {
 	}
 	if len(data) > MaxHookInputBytes {
 		return hookDegraded(r, "input_too_large")
+	}
+	if !utf8.Valid(data) {
+		return hookDegraded(r, "input_encoding_unsupported")
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.UseNumber()
@@ -138,7 +142,8 @@ func InspectHook(adapter string, input io.Reader) HookInspection {
 	}
 	// These are actual read/command tools, not names supplied by MCP servers.
 	// Unsupported tools do not generate per-call incident storms.
-	if toolName != "Bash" && toolName != "Read" && !(adapter == "zcode" && toolName == "read_file") {
+	powerShell := adapter == "claude-code" && toolName == "PowerShell"
+	if toolName != "Bash" && toolName != "Read" && !powerShell && !(adapter == "zcode" && toolName == "read_file") {
 		r.Unknowns = append(r.Unknowns, "tool_not_observed")
 		return r
 	}
@@ -149,12 +154,15 @@ func InspectHook(adapter string, input io.Reader) HookInspection {
 			return hookDegraded(r, "schema_unsupported")
 		}
 		counts := map[string]int{}
-		if toolName == "Bash" {
+		if toolName == "Bash" || powerShell {
 			command, ok := args["command"].(string)
 			if !ok {
 				return hookDegraded(r, "schema_unsupported")
 			}
 			paths, parsed := hookReadCommandPaths(command)
+			if powerShell {
+				paths, parsed = hookPowerShellReadCommandPaths(command)
+			}
 			if !parsed {
 				r.Unknowns = append(r.Unknowns, "shell_command_not_parsed")
 			}

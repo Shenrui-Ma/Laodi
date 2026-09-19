@@ -10,7 +10,7 @@ Laodi 是本地隐私报警器。Skill 负责查询与解释；持续监测由�
 
 ## 使用流程
 
-1. 用户询问状态或提醒时，先通过宿主的正常命令工具检查 `command -v laodi`。找不到命令时说明 CLI 未安装或不在 PATH，查看可信工作区的 README 安装说明；不要编造发布地址、执行来历不明的安装脚本或自动使用 `sudo`。
+1. 用户询问状态或提醒时，先通过宿主的正常命令工具查找 CLI：POSIX shell 用 `command -v laodi`，Windows PowerShell 用 `Get-Command laodi.exe -CommandType Application -ErrorAction SilentlyContinue`。找不到命令时说明 CLI 未安装或不在 PATH，查看可信工作区的安装说明；不要编造发布地址、执行来历不明的安装脚本或自动使用 `sudo`。
 2. 按用户问题执行对应的只读查询：
 
    | 用户问题 | 命令 |

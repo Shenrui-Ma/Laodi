@@ -348,7 +348,7 @@ func validHookCount(kind, name string) bool {
 		return name == "private_key_block" || name == "provider_token" || name == "credential_assignment"
 	case "hook_coverage_degraded":
 		switch name {
-		case "input_invalid", "input_too_large", "input_depth_exceeded", "input_nodes_exceeded", "input_read_failed", "input_timeout", "adapter_unsupported", "schema_unsupported", "output_missing", "output_shape_unsupported", "output_partial", "output_truncated":
+		case "input_invalid", "input_too_large", "input_depth_exceeded", "input_nodes_exceeded", "input_read_failed", "input_encoding_unsupported", "input_timeout", "adapter_unsupported", "schema_unsupported", "output_missing", "output_shape_unsupported", "output_partial", "output_truncated":
 			return true
 		}
 	}
@@ -370,7 +370,7 @@ func openHookInbox(stateDir string, create bool) (*os.Root, error) {
 	}
 	defer parent.Close()
 	if create {
-		if err := parent.Mkdir(hookInboxName, 0700); err != nil && !errors.Is(err, os.ErrExist) {
+		if err := privateDirectory(parent, hookInboxName); err != nil {
 			return nil, err
 		}
 	}
@@ -378,13 +378,13 @@ func openHookInbox(stateDir string, create bool) (*os.Root, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !before.IsDir() || before.Mode().Perm() != 0700 {
+	if !before.IsDir() {
 		return nil, errHookInboxUnavailable
 	}
 	// Go 1.25 gives a nested Root only its relative child name. Our Unix
 	// no-follow file opener and lock use Root.Name(), so bind an absolute
 	// name explicitly and keep verifying it against the already-open parent.
-	root, err := os.OpenRoot(filepath.Join(parent.Name(), hookInboxName))
+	root, err := openStateRoot(filepath.Join(parent.Name(), hookInboxName), false)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +512,7 @@ func writeHookRecord(root *os.Root, name string, data []byte) error {
 		return err
 	}
 	tmp := ".write-" + hex.EncodeToString(nonce[:])
-	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	f, err := createPrivateFile(root, tmp, os.O_WRONLY)
 	if err != nil {
 		return err
 	}
@@ -531,24 +531,19 @@ func writeHookRecord(root *os.Root, name string, data []byte) error {
 	if _, err := root.Lstat(name); err == nil || !errors.Is(err, os.ErrNotExist) {
 		return errHookInboxInvalid
 	}
-	if err := root.Rename(tmp, name); err != nil {
+	if err := replaceStateFile(root, tmp, name); err != nil {
 		return err
 	}
 	return syncHookInbox(root)
 }
 
 func syncHookInbox(root *os.Root) error {
-	dir, err := root.Open(".")
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-	return dir.Sync()
+	return syncStateDirectory(root)
 }
 
 func markHookInboxGap(root *os.Root) {
 	// O_EXCL neither follows a planted symlink nor truncates another writer.
-	f, err := root.OpenFile(hookInboxGapName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	f, err := createPrivateFile(root, hookInboxGapName, os.O_WRONLY)
 	if err != nil {
 		return
 	}

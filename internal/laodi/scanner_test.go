@@ -94,7 +94,7 @@ func TestSymlinksAndStatePathsAreNotFollowed(t *testing.T) {
 	if e := os.MkdirAll(filepath.Join(root, testWorkspace, "manifests"), 0700); e != nil {
 		t.Fatal(e)
 	}
-	if e := os.Symlink(filepath.Join(other, "outside.json"), filepath.Join(root, testWorkspace, "manifests", hashA+".json")); e != nil {
+	if e := createUnsafeTestLink(filepath.Join(other, "outside.json"), filepath.Join(root, testWorkspace, "manifests", hashA+".json")); e != nil {
 		t.Fatal(e)
 	}
 	writeFixture(t, root, testWorkspace+"/state.json", map[string]any{"workspaceKey": "/PRIVATE/customer-project", "workspacePath": "/PRIVATE/customer-project", "lastAcceptedManifestHash": hashA, "lastAcceptedManifestPath": filepath.Join(other, "outside.json")})
@@ -425,7 +425,7 @@ func TestExtraInvalidMetadataAndSymlinksDegrade(t *testing.T) {
 				if err := os.RemoveAll(p); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.Symlink(target, p); err != nil {
+				if err := createUnsafeTestLink(target, p); err != nil {
 					t.Fatal(err)
 				}
 			}
