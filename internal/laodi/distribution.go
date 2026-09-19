@@ -669,6 +669,11 @@ func UninstallDistribution(plan DistributionPlan) (DistributionResult, error) {
 	if err := preflightDistribution(plan); err != nil {
 		return result, err
 	}
+	guardRelease, err := lockArchiveGuardForRemoval(plan.StateDir)
+	if err != nil {
+		return result, err
+	}
+	defer guardRelease()
 	release, err := AcquireLock(filepath.Join(plan.StateDir, "distribution-management"))
 	if err != nil {
 		return result, err

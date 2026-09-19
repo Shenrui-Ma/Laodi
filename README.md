@@ -31,6 +31,7 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测项目快照和数据上
 | 某APP和其他编程工具中，已接入的 Bash、Read 请求里的敏感文件访问 | 仅记录，不弹通知 |
 | 已接入工具的输出中出现疑似令牌、私钥或凭据赋值 | 保存脱敏记录并通知 |
 | 持续解析异常、读取失败或事件队列缺口 | 记录并限频提醒 |
+| 已核验客户端的额外快照归档（需手动启用） | 限制归档目录读写，保留普通 Git 操作 |
 
 不影响正常 Git 操作和 Agent 长任务，默认无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出只用于本地检测，不作为原文保存，不保存密钥正文。
 
@@ -44,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/instal
 
 已安装时会更新，保留配置和事件记录。
 
-[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.2) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
+[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.4.0-preview.1) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
 
 查看状态：
 
@@ -53,6 +54,18 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/instal
 ```
 
 Skill 随包提供，可按需接入；后台检测独立运行。
+
+## 限制额外快照（实验性）
+
+正常退出客户端后，执行一次：
+
+```sh
+"$HOME/Library/Application Support/Laodi-skills/runtime/laodi" protect enable
+```
+
+之后照常打开客户端。用 `protect status` 查看，用 `protect disable` 撤销（同样需要先退出客户端）。无需管理员权限，不改代理或证书。
+
+只支持已核验版本的默认归档路径，不阻止工具读取或普通模型请求。客户端更新、权限变化后需要重新检查。[支持范围与恢复](docs/PROTECTION.md)
 
 ## 架构
 

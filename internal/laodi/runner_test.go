@@ -323,3 +323,152 @@ func TestWatchSnapshotCapacityKeepsHooksAndKnownSnapshotsRunning(t *testing.T) {
 		t.Fatalf("capacity notice or hook notice missing/repeated: %q %v", output, err)
 	}
 }
+
+func TestWatchProtectionFailureNotifiesOnFirstRunAndRateLimitsRecurrence(t *testing.T) {
+	stateDir := filepath.Join(t.TempDir(), "state")
+	home, app := t.TempDir(), "/synthetic/not-a-real-client.app"
+	helper, calls := filepath.Join(t.TempDir(), "notice.sh"), filepath.Join(t.TempDir(), "calls")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '" + calls + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
+	if err := os.WriteFile(helper, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for index, status := range []string{"degraded", "enabled", "degraded"} {
+		checks := 0
+		opts := WatchOptions{StateDir: stateDir, Interval: time.Second,
+			HooksOnly: true, Notifier: helper, ProtectionHome: home,
+			protectionCheck: func(gotHome, gotState, gotApp string) ProtectionSummary {
+				if gotHome != home || gotState != stateDir || gotApp != app {
+					t.Fatal("unexpected protection check scope")
+				}
+				checks++
+				return ProtectionSummary{Status: status}
+			},
+		}
+		watchProtectionFixture(t, &Scanner{App: app}, opts, func(state State) bool {
+			switch index {
+			case 0:
+				return len(state.Events) == 1 && state.Events[0].Notification == "accepted_by_os"
+			case 1:
+				return state.Initialized && len(state.Diagnostics) == 0
+			default:
+				return len(state.Events) == 2 && state.Events[1].Notification == "aggregated"
+			}
+		})
+		if checks != 1 {
+			t.Fatalf("expected one check on start, got %d", checks)
+		}
+	}
+	state, err := LoadState(stateDir)
+	if err != nil || len(state.Events) != 2 {
+		t.Fatalf("wrong guard episodes: %+v %v", state.Events, err)
+	}
+	if state.Events[0].BaselineExisting || state.Events[0].Notification != "accepted_by_os" || state.Events[1].Notification != "aggregated" {
+		t.Fatalf("baseline or rate-limit failure: %+v", state.Events)
+	}
+	data, err := os.ReadFile(calls)
+	if err != nil || strings.Count(string(data), "protection-coverage-degraded") != 1 {
+		t.Fatalf("guard notification repeated: %q %v", data, err)
+	}
+}
+
+func TestWatchWithoutProtectionHomeNeverInvokesChecker(t *testing.T) {
+	opts := WatchOptions{StateDir: filepath.Join(t.TempDir(), "state"), Interval: time.Second,
+		Duration: 20 * time.Millisecond, HooksOnly: true,
+		protectionCheck: func(string, string, string) ProtectionSummary {
+			t.Fatal("watch inferred a home and inspected guard configuration")
+			return ProtectionSummary{}
+		},
+	}
+	if err := Watch(context.Background(), &Scanner{App: "/synthetic/client.app"}, opts); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProtectionNoticeUsesWhitelistedArgumentsOnly(t *testing.T) {
+	dir := t.TempDir()
+	helper, calls := filepath.Join(dir, "notice.sh"), filepath.Join(dir, "calls")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + calls + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
+	if err := os.WriteFile(helper, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	event := Event{ID: "opaque123", Kind: protectionHealthKind, Evidence: "PRIVATE_PATH", Unknowns: []string{"PRIVATE_ERROR"}}
+	if status := sendNotice(context.Background(), helper, event); status != "accepted_by_os" {
+		t.Fatal(status)
+	}
+	data, err := os.ReadFile(calls)
+	if err != nil || string(data) != "--send\n--id\nopaque123\n--kind\nprotection-coverage-degraded\n" {
+		t.Fatalf("unexpected notice arguments: %q %v", data, err)
+	}
+	if err := os.Remove(calls); err != nil {
+		t.Fatal(err)
+	}
+	event.Kind = "protection_coverage_degraded;PRIVATE"
+	if status := sendNotice(context.Background(), helper, event); status != "unsupported_notice_kind" {
+		t.Fatal(status)
+	}
+	if _, err := os.Stat(calls); !os.IsNotExist(err) {
+		t.Fatal("unrecognized kind invoked helper")
+	}
+	source, err := os.ReadFile(filepath.Join("..", "..", "platform", "macos", "notifier", "main.m"))
+	if err != nil || !strings.Contains(string(source), `@"protection-coverage-degraded": @[@"老底：归档限制需要检查"`) || !strings.Contains(string(source), "此提醒不代表发生了上传。") {
+		t.Fatalf("native helper is missing the fixed, non-upload template: %v", err)
+	}
+}
+
+func TestProtectionAndSnapshotCoverageNoticesDoNotSupersedeEachOther(t *testing.T) {
+	stateDir := filepath.Join(t.TempDir(), "state")
+	state := emptyState()
+	rootID := RootID("laodi:tool-hooks-only")
+	now := time.Now().UTC()
+	if _, err := ApplyReport(&state, storeReport(), rootID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ApplyReport(&state, storeReport(
+		Finding{Key: "sensor:coverage", Kind: "coverage_degraded", EvidenceHash: "snapshot-failure"},
+		Finding{Key: protectionHealthKey, Kind: protectionHealthKind, EvidenceHash: "guard-failure"}), rootID, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveState(stateDir, state); err != nil {
+		t.Fatal(err)
+	}
+	helper := filepath.Join(t.TempDir(), "notice.sh")
+	if err := os.WriteFile(helper, []byte("#!/bin/sh\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	watchProtectionFixture(t, &Scanner{}, WatchOptions{StateDir: stateDir, Interval: time.Second, HooksOnly: true, Notifier: helper}, func(state State) bool {
+		return len(state.Events) == 2 && state.Events[0].Notification == "accepted_by_os" && state.Events[1].Notification == "accepted_by_os"
+	})
+	state, err := LoadState(stateDir)
+	if err != nil || len(state.Events) != 2 {
+		t.Fatalf("missing health events: %+v %v", state.Events, err)
+	}
+	for _, event := range state.Events {
+		if event.Notification != "accepted_by_os" {
+			t.Fatalf("health event superseded another independent sensor: %+v", event)
+		}
+	}
+}
+
+func watchProtectionFixture(t *testing.T, scanner *Scanner, opts WatchOptions, ready func(State) bool) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- Watch(ctx, scanner, opts) }()
+	defer func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Error(err)
+		}
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		state, err := LoadState(opts.StateDir)
+		if err == nil && ready(state) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("protection watch did not reach expected state: %+v %v", state, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

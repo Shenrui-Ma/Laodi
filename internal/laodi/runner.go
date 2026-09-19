@@ -28,6 +28,8 @@ type WatchOptions struct {
 	Notifier           string
 	Output             io.Writer
 	HooksOnly          bool
+	ProtectionHome     string
+	protectionCheck    protectionHealthChecker
 }
 type noticeResult struct {
 	ID, Status string
@@ -133,6 +135,7 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 	}
 	brokenRounds := 0
 	lastPersist := time.Time{}
+	protection := newProtectionMonitor(opts.ProtectionHome, opts.StateDir, scanner.App, opts.protectionCheck)
 	cycle := func() error {
 		var report Report
 		if opts.HooksOnly {
@@ -189,6 +192,7 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 				}
 			}
 		}
+		protection.observe(time.Now(), &report, &state)
 		events, e := ApplyReport(&state, report, rootID, time.Now().UTC())
 		if e != nil {
 			return e
@@ -203,10 +207,11 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 			"global_config_manifest_match": 1, "global_config_upload_attempt_recorded": 2, "global_config_upload_acceptance_recorded": 3,
 			"coverage_degraded": 4, "monitor_capacity_degraded": 4,
 			"sensitive_tool_access_requested": 1, "sensitive_tool_output_detected": 4, "hook_coverage_degraded": 3,
+			protectionHealthKind: 4,
 		}
 		for _, ev := range events {
 			group := ev.Key
-			if n := strings.LastIndex(group, ":"); n >= 0 {
+			if n := strings.LastIndex(group, ":"); n >= 0 && ev.Kind != protectionHealthKind {
 				group = group[:n]
 			}
 			if old, ok := strongest[group]; !ok || rank[ev.Kind] > rank[old.Kind] {
@@ -301,6 +306,7 @@ func sendNotice(ctx context.Context, helper string, event Event) string {
 		"global_config_manifest_match": "snapshot-config", "global_config_upload_attempt_recorded": "config-upload-attempt", "global_config_upload_acceptance_recorded": "config-upload-accepted",
 		"coverage_degraded": "coverage-degraded", "monitor_capacity_degraded": "coverage-degraded",
 		"sensitive_tool_output_detected": "tool-output-sensitive", "hook_coverage_degraded": "hook-coverage-degraded",
+		protectionHealthKind: "protection-coverage-degraded",
 	}
 	kind, ok := kinds[event.Kind]
 	if !ok {

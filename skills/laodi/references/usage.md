@@ -13,12 +13,14 @@ laodi status --format agent-summary
 laodi check --format agent-summary
 laodi incidents --format agent-summary
 laodi doctor --format agent-summary
+laodi protect status --format agent-summary
 ```
 
 - `status`：解释后台监测是否运行及其范围。不要把 CLI 能运行等同于守护进程在运行。
 - `check`：一次性、只读检查已支持来源；不会启动后台服务。扫描不到支持目录和扫描完成没有线索是不同结果。
 - `incidents`：读取已经记录的事件摘要；没有后台服务时，历史为空不代表当前没有问题。
 - `doctor`：检查版本、支持范围、目录可读性、通知及后台运行前提；默认不修复、不更改权限。
+- `protect status`：只读核对可选归档限制。`unsupported_client`、`degraded`、`unknown`、`recovery_needed` 都不能说成保护有效；最后一种表示应在客户端退出后执行 `protect disable` 恢复。`enabled` 也不是实际阻断或上传次数。
 
 CLI 尚在开发时以上接口可能分阶段交付。以真实 `--help` 为准，不补造输出，不把规划当成功。
 

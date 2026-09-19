@@ -669,3 +669,55 @@ func TestStoreMigratesDevelopmentHookCursorsWithoutLosingSnapshots(t *testing.T)
 		t.Fatal("migration did not preserve bounded recent legacy evidence")
 	}
 }
+
+func TestStoreProtectionHealthHasOnePinnedCursorAndNoBaselineSuppression(t *testing.T) {
+	state := emptyState()
+	now := time.Unix(1000, 0)
+	finding := Finding{Key: protectionHealthKey, Kind: protectionHealthKind, EvidenceHash: digest("degraded")}
+	events, err := ApplyReport(&state, storeReport(finding), "root", now)
+	if err != nil || len(events) != 1 || events[0].BaselineExisting || isToolHookKind(events[0].Kind) {
+		t.Fatalf("first guard failure suppressed or classified as tool hook: %v %v", events, err)
+	}
+	for i := range maxSeen {
+		state.Seen[fmt.Sprintf("snapshot-%d", i)] = "hash"
+	}
+	for i := range maxHookSeen + 25 {
+		rememberHook(&state, fmt.Sprintf("hook:%d", i), "hash")
+	}
+	if len(state.Seen) != maxSeen || len(state.HookSeen) != maxHookSeen || len(state.HookSeenOrder) != maxHookSeen || state.HookSeen[protectionHealthKey] != finding.EvidenceHash {
+		t.Fatal("guard cursor was evicted or changed either window budget")
+	}
+	// Bounded event retention must not cause the same failure to notify again.
+	state.Events = nil
+	dir := privateStateDir(t)
+	if err := SaveState(dir, state); err != nil {
+		t.Fatal(err)
+	}
+	state, err = LoadState(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if events, err := ApplyReport(&state, storeReport(finding), "root", now.Add(time.Minute)); err != nil || len(events) != 0 {
+		t.Fatalf("restart or window churn repeated the guard failure: %v %v", events, err)
+	}
+	finding.EvidenceHash = digest("unsupported_client")
+	if events, err := ApplyReport(&state, storeReport(finding), "root", now.Add(2*time.Minute)); err != nil || len(events) != 1 || events[0].Kind != protectionHealthKind {
+		t.Fatalf("full snapshot map suppressed guard change: %v %v", events, err)
+	}
+	if len(state.Seen) != maxSeen || len(state.HookSeen) != maxHookSeen {
+		t.Fatal("guard change exceeded existing state bounds")
+	}
+}
+
+func TestStoreProtectionHealthExceptionRequiresExactKeyAndKind(t *testing.T) {
+	for _, finding := range []Finding{
+		{Key: "other:key", Kind: protectionHealthKind, EvidenceHash: "hash"},
+		{Key: protectionHealthKey, Kind: "coverage_degraded", EvidenceHash: "hash"},
+	} {
+		state := emptyState()
+		events, err := ApplyReport(&state, storeReport(finding), "root", time.Now())
+		if err != nil || len(events) != 0 || len(state.HookSeen) != 0 || len(state.Events) != 1 || !state.Events[0].BaselineExisting {
+			t.Fatalf("unrelated finding received guard baseline/cursor exception: %v %v", events, err)
+		}
+	}
+}

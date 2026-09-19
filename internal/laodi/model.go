@@ -65,14 +65,15 @@ type State struct {
 
 // AgentSummary is a separate whitelist type, never a redaction of raw Report.
 type AgentSummary struct {
-	SourceCounts  map[string]int `json:"source_counts,omitempty"`
-	SchemaVersion int            `json:"schema_version"`
-	Coverage      string         `json:"coverage"`
-	Parser        string         `json:"parser"`
-	Counts        map[string]int `json:"counts"`
-	Events        []SummaryEvent `json:"events,omitempty"`
-	Diagnostics   []Diagnostic   `json:"diagnostics,omitempty"`
-	Unknowns      []string       `json:"unknowns"`
+	Protection    *ProtectionSummary `json:"protection,omitempty"`
+	SourceCounts  map[string]int     `json:"source_counts,omitempty"`
+	SchemaVersion int                `json:"schema_version"`
+	Coverage      string             `json:"coverage"`
+	Parser        string             `json:"parser"`
+	Counts        map[string]int     `json:"counts"`
+	Events        []SummaryEvent     `json:"events,omitempty"`
+	Diagnostics   []Diagnostic       `json:"diagnostics,omitempty"`
+	Unknowns      []string           `json:"unknowns"`
 }
 
 type SummaryEvent struct {

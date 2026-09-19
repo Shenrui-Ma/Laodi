@@ -13,7 +13,7 @@ fail() {
 main() {
   # User archive-tool defaults must not alter inspection or the extraction directory.
   unset UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT
-  laodi_version=${LAODI_VERSION:-v0.3.0-preview.2}
+  laodi_version=${LAODI_VERSION:-v0.4.0-preview.1}
   case "${1:-}" in
     --version)
       [ "$#" -ge 2 ] || fail '--version requires a release tag.'
@@ -43,7 +43,7 @@ main() {
     }
     END { exit (NR != 1 || bad) }
   '; then
-    fail 'Use a release tag such as v0.3.0-preview.2.'
+    fail 'Use a release tag such as v0.4.0-preview.1.'
   fi
 
   [ "$(uname -s)" = Darwin ] || fail 'This release supports macOS only; Windows support is planned.'

@@ -28,6 +28,8 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *Templates(void) {
             @"已在本机记录风险，提醒不包含具体内容；是否进入模型请求或完成上传尚未确认。当前任务继续运行。"],
         @"hook-coverage-degraded": @[@"老底：工具事件检测存在缺口",
             @"部分事件可能未被完整检查。当前任务继续运行。可在 Agent 中询问“检查老底状态”。"],
+        @"protection-coverage-degraded": @[@"老底：归档限制需要检查",
+            @"归档限制未通过健康检查，当前不应依赖它阻止额外快照。任务继续运行；请查看老底状态。此提醒不代表发生了上传。"],
         @"coverage-degraded": @[@"老底：部分监测暂不可用",
             @"已支持的监测范围出现缺口。当前任务继续运行。可在 Agent 中询问“检查老底状态”。"]
     };
@@ -94,7 +96,7 @@ int main(int argc, const char *argv[]) {
             puts("LaodiNotify --status\n"
                  "LaodiNotify --request-permission\n"
                  "LaodiNotify --send --id OPAQUE_ID --kind KIND [--existing]\n"
-                 "KIND: snapshot-history | upload-attempt | upload-accepted | snapshot-workspace | workspace-upload-attempt | workspace-upload-accepted | snapshot-config | config-upload-attempt | config-upload-accepted | tool-output-sensitive | hook-coverage-degraded | coverage-degraded\n"
+                 "KIND: snapshot-history | upload-attempt | upload-accepted | snapshot-workspace | workspace-upload-attempt | workspace-upload-accepted | snapshot-config | config-upload-attempt | config-upload-accepted | tool-output-sensitive | hook-coverage-degraded | protection-coverage-degraded | coverage-degraded\n"
                  "Only --request-permission may request authorization. --send never requests it.");
             return 0;
         }

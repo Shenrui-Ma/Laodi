@@ -6,7 +6,11 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/instal
 
 脚本自动下载本Release通用包、验证SHA-256并执行接入。也可手动下载下面的ZIP。
 
-本版支持从`v0.3.0-preview.1`原位升级，并新增`laodi update`。更新保留配置、通知身份和事件记录，仅短暂重启老底监测进程，Agent任务继续运行；启动失败自动回滚，意外中断可在下次更新时恢复。同时包含老底通知图标及通知授权超时处理修正。
+本版新增实验性的 `laodi protect enable/status/disable`：限制已核验客户端默认路径中的额外快照归档，保留普通 Git 与检查点。首次启用和撤销前需正常退出客户端，老底不会中断任务；不改代理或证书，无需 sudo。默认安装仍只监测。
+
+已通过真实 macOS ACL、故障恢复及合成归档流程正反测试；真机对话、Git、编辑、测试与撤销正常。本轮没有观察到真实客户端归档被拒绝的证据，不把“没有新包”当成阻断成功。工具读取、普通模型上下文和其他上传机制不在阻断范围。详见仓库 `docs/PROTECTION.md`。
+
+限制异常和客户端变化会由现有监测进程限频提醒。更新保留设置和事件；启用了限制时，卸载前需先 `protect disable`。
 
 下载 `Laodi-skills-<版本>-macos-universal.zip`，Apple Silicon 与 Intel 共用一个包。解压后双击 `install.command`，无需自行构建，也无需 Go、Node.js 或 Python。
 

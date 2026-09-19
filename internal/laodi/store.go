@@ -196,24 +196,25 @@ func applyReport(destination *State, current State, report Report, rootID string
 			return nil, errors.New("finding requires key, kind, and evidence hash")
 		}
 		hookFinding := isToolHookKind(finding.Kind)
+		protectionFinding := isProtectionHealthFinding(finding)
 		seen := next.Seen
-		if hookFinding {
+		if hookFinding || protectionFinding {
 			seen = next.HookSeen
 		}
 		if seen[finding.Key] == finding.EvidenceHash {
 			continue
 		}
 		_, exists := seen[finding.Key]
-		if !hookFinding && !exists && len(next.Seen) >= maxSeen {
+		if !hookFinding && !protectionFinding && !exists && len(next.Seen) >= maxSeen {
 			capacityExceeded = true
 			// Do not claim to track an unseen snapshot without a durable cursor.
 			// Existing snapshots and independent tool hooks continue normally.
 			continue
 		}
 		workspaceFinding := isWorkspaceSnapshotKind(finding.Kind)
-		findingBaseline := baseline && !hookFinding
+		findingBaseline := baseline && !hookFinding && !protectionFinding
 		upgradeBaseline := current.Initialized && workspaceBaseline && workspaceFinding && !exists
-		if hookFinding {
+		if hookFinding || protectionFinding {
 			rememberHook(&next, finding.Key, finding.EvidenceHash)
 		} else {
 			next.Seen[finding.Key] = finding.EvidenceHash
@@ -318,7 +319,9 @@ func hasStoreDiagnostic(diagnostics []Diagnostic, code string) bool {
 }
 
 // Order is oldest to newest distinct inserted/changed key. Unchanged duplicate
-// replays do not refresh it. Only this small hook window may evict cursors.
+// replays do not refresh it. One fixed protection-health key may share this
+// existing format; pinning it prevents busy hooks from repeating a guard alarm.
+// The schema stays readable by older releases during an upgrade rollback.
 func rememberHook(state *State, key, hash string) {
 	if _, exists := state.HookSeen[key]; exists {
 		for i, old := range state.HookSeenOrder {
@@ -328,8 +331,12 @@ func rememberHook(state *State, key, hash string) {
 			}
 		}
 	} else if len(state.HookSeenOrder) >= maxHookSeen {
-		delete(state.HookSeen, state.HookSeenOrder[0])
-		state.HookSeenOrder = state.HookSeenOrder[1:]
+		oldest := 0
+		if state.HookSeenOrder[oldest] == protectionHealthKey {
+			oldest++
+		}
+		delete(state.HookSeen, state.HookSeenOrder[oldest])
+		state.HookSeenOrder = append(state.HookSeenOrder[:oldest], state.HookSeenOrder[oldest+1:]...)
 	}
 	state.HookSeen[key] = hash
 	state.HookSeenOrder = append(state.HookSeenOrder, key)
