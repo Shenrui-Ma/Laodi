@@ -32,7 +32,7 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照
 | 已接入工具的输出中出现疑似令牌、私钥或凭据赋值 | 保存脱敏记录并通知 |
 | 持续解析异常、读取失败或事件队列缺口 | 记录并限频提醒 |
 
-不影响正常 Git 操作和 Agent 长任务，默认无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出只用于本地检测，不作为原文保存，事件中不保存密钥正文。
+不影响正常 Git 操作和 Agent 长任务，默认无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出只用于本地检测，不作为原文保存，不保存密钥正文。
 
 ## 一条命令安装
 
@@ -42,11 +42,7 @@ Laodi-skills 是 AI 编程工具的隐私监控，监测已支持的仓库快照
 curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
 ```
 
-脚本自动下载预编译 Release、校验 SHA-256、解压并完成接入。无需手动下载 ZIP，也不需要 Go、Node.js、Python 或 sudo。安装器会配置已检测到的支持工具与后台监测，不重启当前 Agent；首次按系统提示选择通知权限。
-
 [Release 与校验文件](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.3.0-preview.1) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
-
-预览版尚无 Developer ID 签名与 Apple 公证，首次运行可能需要系统确认；脚本不会关闭系统安全保护。未检测到支持工具时会明确提示尚未接入。
 
 查看状态：
 
@@ -70,15 +66,11 @@ Skill 随包提供，可按需接入；后台检测独立运行。
 
 已完成合成证据测试、Go 竞态测试与静态检查；工具接入验证包含 17 次合成 Hook 调用、四路并发、异常输入、截断和重启去重，正常 Git 操作验证通过。
 
-**仍待验收：真实客户端回调、系统横幅送达、长期稳定性，以及正式签名与公证。** 当前能力与剩余风险见[发布前检查](docs/RELEASE-REVIEW.md)。
-
 ## 卸载
 
 ```sh
 "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" remove
 ```
-
-只移除老底自己的 Hook 和后台服务，保留本地记录与运行文件。预览版暂不自动覆盖已有不同版本的安装。
 
 ## TODO
 
