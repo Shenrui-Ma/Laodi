@@ -4,6 +4,7 @@
 param(
     [Parameter(Mandatory=$true)][ValidatePattern('^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$')][string]$Version,
     [string]$StateDir = '',
+	[string]$ClientExecutable = '',
     [switch]$DryRun,
     [switch]$NoNotifications,
     [ValidateSet('text','json')][string]$Format = 'text',
@@ -15,6 +16,7 @@ $ErrorActionPreference = 'Stop'
 if ($Version.Length -gt 128) { throw 'Release tag is too long' }
 foreach ($part in (($Version -split '-',2 | Select-Object -Skip 1) -split '\.')) { if ($part -match '^0[0-9]+$') { throw 'Invalid numeric prerelease identifier' } }
 Add-Type -AssemblyName System.Net.Http
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 function Get-OfficialBytes([string]$Address,[int64]$Limit) {
     $handler = [Net.Http.HttpClientHandler]::new()
@@ -138,6 +140,7 @@ try {
     }
     $arguments = @('install','--source-dir',$stage,'--format',$Format)
     if ($StateDir) { $arguments += @('--state-dir',$StateDir) }
+	if ($ClientExecutable) { $arguments += @('--client-exe',$ClientExecutable) }
     if ($DryRun) { $arguments += '--dry-run' }
     if ($NoNotifications) { $arguments += '--no-notifications' }
     & (Join-Path $stage 'laodi.exe') @arguments

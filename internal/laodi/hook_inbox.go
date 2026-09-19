@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 )
 
 const (
@@ -395,20 +394,6 @@ func openHookInbox(stateDir string, create bool) (*os.Root, error) {
 		return nil, errHookInboxUnavailable
 	}
 	return root, nil
-}
-
-func lockHookInbox(root *os.Root) (func(), error) {
-	deadline := time.Now().Add(100 * time.Millisecond)
-	for {
-		release, err := AcquireLock(root.Name())
-		if err == nil {
-			return release, nil
-		}
-		if !time.Now().Before(deadline) {
-			return nil, errHookInboxUnavailable
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
 }
 
 func hookInboxKey(root *os.Root, create bool) ([]byte, error) {

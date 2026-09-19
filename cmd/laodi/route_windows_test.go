@@ -12,6 +12,9 @@ func TestWindowsBrokenRouteDoesNotFailHookOrRunFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	executable := filepath.Join(dir, "laodi.exe")
+	if handled, err := routeWindowsExecutable(executable, []string{"-c", "laodi-hook-v1:invalid"}); !handled || err != nil {
+		t.Fatalf("broken native shell route must silently fail open: %v %v", handled, err)
+	}
 	if handled, err := routeWindowsExecutable(executable, []string{"hook", "--adapter", "claude-code"}); !handled || err != nil {
 		t.Fatalf("broken hook route must be silently handled without fallback: %v %v", handled, err)
 	}

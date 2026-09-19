@@ -4,6 +4,7 @@ package laodi
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -18,3 +19,18 @@ func DetectBuild(app string) string {
 	}
 	return strings.TrimSpace(string(b))
 }
+
+func refreshClientBuild(s *Scanner) {
+	if s.App != "" {
+		info, e := os.Stat(clientMetadataPath(s.App))
+		if e != nil {
+			s.Build = "unknown"
+		} else if !info.ModTime().Equal(s.appStamp) {
+			s.Build = DetectBuild(s.App)
+			s.appStamp = info.ModTime()
+		}
+	}
+}
+
+func supportedSnapshotBuild(build, app string) bool          { return build == KnownBuild }
+func unsupportedSnapshotBuildDiagnostic(build string) string { return "zcode_build_not_verified" }

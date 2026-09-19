@@ -77,6 +77,7 @@ type Scanner struct {
 	Build           string
 	App             string
 	appStamp        time.Time
+	appFiles        []os.FileInfo
 	cache           map[string]cachedArtifact
 	referenceCursor int
 	workspaceCursor int
@@ -87,15 +88,7 @@ func digest(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeT
 func RootID(s string) string { return digest(s) }
 
 func (s *Scanner) Scan() Report {
-	if s.App != "" {
-		info, e := os.Stat(clientMetadataPath(s.App))
-		if e != nil {
-			s.Build = "unknown"
-		} else if !info.ModTime().Equal(s.appStamp) {
-			s.Build = DetectBuild(s.App)
-			s.appStamp = info.ModTime()
-		}
-	}
+	refreshClientBuild(s)
 	r := Report{SchemaVersion: SchemaVersion, Parser: ParserID, Coverage: "observing", Findings: []Finding{}, Diagnostics: []Diagnostic{}, CheckedAt: time.Now().UTC()}
 	addDiag := func(code string) {
 		for _, d := range r.Diagnostics {
@@ -106,9 +99,9 @@ func (s *Scanner) Scan() Report {
 		r.Diagnostics = append(r.Diagnostics, Diagnostic{Code: code})
 		r.Coverage = "degraded"
 	}
-	if s.Build != KnownBuild {
+	if !supportedSnapshotBuild(s.Build, s.App) {
 		r.Coverage = "unsupported_build"
-		r.Diagnostics = append(r.Diagnostics, Diagnostic{Code: "zcode_build_not_verified"})
+		r.Diagnostics = append(r.Diagnostics, Diagnostic{Code: unsupportedSnapshotBuildDiagnostic(s.Build)})
 		return r
 	}
 	root, err := os.OpenRoot(s.Root)

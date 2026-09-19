@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/Shenrui-Ma/Laodi-skills/internal/laodi"
 )
@@ -16,6 +17,7 @@ func runDistribution(action string, args []string) error {
 	noNotifications := fs.Bool("no-notifications", false, "安装时不请求系统通知权限")
 	source := fs.String("source-dir", "", "发行包目录；默认当前可执行文件所在目录")
 	stateDir := fs.String("state-dir", "", "本工具状态目录；默认当前用户私有应用数据目录")
+	clientExe := fs.String("client-exe", "", "Windows 客户端可执行文件；默认发现已验证版本")
 	format := fs.String("format", "text", "text or json")
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
@@ -35,6 +37,7 @@ func runDistribution(action string, args []string) error {
 	}
 	plan, err := laodi.PlanDistribution(laodi.DistributionOptions{
 		SourceDir: *source, StateDir: *stateDir,
+		ClientExecutable:     *clientExe,
 		Remove:               action == "remove",
 		RequestNotifications: action == "install" && !*noNotifications,
 	})
@@ -51,7 +54,11 @@ func runDistribution(action string, args []string) error {
 	var result laodi.DistributionResult
 	if action == "install" {
 		if *format == "text" && plan.RequestNotifications && len(plan.Adapters) > 0 {
-			fmt.Println("正在安装老底。如出现系统通知授权，请选择是否允许提醒。")
+			if runtime.GOOS == "windows" {
+				fmt.Println("正在安装老底并注册通知身份。Windows 设置可能关闭通知；是否可见需另行确认。")
+			} else {
+				fmt.Println("正在安装老底。如出现系统通知授权，请选择是否允许提醒。")
+			}
 		}
 		result, err = laodi.InstallDistribution(plan)
 	} else {
@@ -95,6 +102,14 @@ func distributionNotificationLabel(status string) string {
 		return "本次未请求授权"
 	case "unknown":
 		return "暂未确认"
+	case "enabled":
+		return "系统设置允许通知，实际送达待确认"
+	case "disabled":
+		return "Windows 设置已关闭通知"
+	case "registered_status_unknown":
+		return "通知身份已注册，系统设置与送达待确认"
+	case "registration_failed":
+		return "通知身份注册失败"
 	default:
 		return status
 	}

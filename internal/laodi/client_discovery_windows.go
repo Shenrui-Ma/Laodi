@@ -20,8 +20,8 @@ const maxClientExecutableBytes = 512 << 20
 // DiscoverClients does not execute clients or read any settings/session data.
 // A bounded list of public executable candidates avoids whole-disk searches.
 func DiscoverClients() ClientDiscovery {
-	result := ClientDiscovery{Candidates: []ClientCandidate{}, Scope: "windows_standard_locations_and_path",
-		Unknowns: []string{"windows_client_contract_unverified", "nonstandard_install_locations_not_searched", "live_hook_delivery_not_verified"}}
+	result := ClientDiscovery{Candidates: []ClientCandidate{}, Scope: "windows_standard_locations_path_and_running_program_names",
+		Unknowns: []string{"nonstandard_stopped_install_locations_not_searched", "live_hook_delivery_not_verified"}}
 	paths := make(map[string]string)
 	if state, err := DefaultStateDir(""); err == nil {
 		local := filepath.Dir(state)
@@ -46,7 +46,41 @@ func DiscoverClients() ClientDiscovery {
 			paths[candidate] = adapter
 		}
 	}
+	addRunningClientPaths(paths)
 	return inspectClientCandidates(result, paths)
+}
+
+// Process snapshot exposes only names/PIDs. Query image paths only for the two
+// expected program basenames; never inspect command lines, environment or user
+// session files. Downloaded test fixtures with different names are excluded.
+func addRunningClientPaths(paths map[string]string) {
+	snapshot, err := syscall.CreateToolhelp32Snapshot(syscall.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return
+	}
+	defer syscall.CloseHandle(snapshot)
+	var entry syscall.ProcessEntry32
+	entry.Size = uint32(unsafe.Sizeof(entry))
+	for err, count := syscall.Process32First(snapshot, &entry), 0; err == nil && count < 8192; err, count = syscall.Process32Next(snapshot, &entry), count+1 {
+		adapter := map[string]string{"zcode.exe": "zcode", "claude.exe": "claude-code"}[strings.ToLower(syscall.UTF16ToString(entry.ExeFile[:]))]
+		if adapter == "" {
+			continue
+		}
+		handle, err := syscall.OpenProcess(0x1000, false, entry.ProcessID)
+		if err != nil {
+			continue
+		}
+		var image [32768]uint16
+		length := uint32(len(image))
+		ok, _, _ := fileKernel.NewProc("QueryFullProcessImageNameW").Call(uintptr(handle), 0, uintptr(unsafe.Pointer(&image[0])), uintptr(unsafe.Pointer(&length)))
+		syscall.CloseHandle(handle)
+		if ok != 0 && length < uint32(len(image)) {
+			path := syscall.UTF16ToString(image[:length])
+			if localAbsoluteWindowsPath(path) {
+				paths[path] = adapter
+			}
+		}
+	}
 }
 
 func inspectClientCandidates(result ClientDiscovery, paths map[string]string) ClientDiscovery {
@@ -59,6 +93,9 @@ func inspectClientCandidates(result ClientDiscovery, paths map[string]string) Cl
 		seen[alias] = true
 		identity, ok := inspectClientExecutable(adapter, name)
 		if ok {
+			if _, err := DetectWindowsHookContract(adapter, name); err == nil {
+				identity.HookCoverage = "static_contract_verified_live_delivery_pending"
+			}
 			result.Candidates = append(result.Candidates, identity)
 		}
 	}
@@ -96,6 +133,9 @@ func inspectClientExecutable(adapter, name string) (ClientCandidate, bool) {
 		return ClientCandidate{}, false
 	}
 	defer f.Close()
+	if err := windowsCheckFileIdentity(syscall.Handle(f.Fd()), false); err != nil {
+		return ClientCandidate{}, false
+	}
 	opened, err := f.Stat()
 	if err != nil || !os.SameFile(before, opened) {
 		return ClientCandidate{}, false

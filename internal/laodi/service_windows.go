@@ -218,6 +218,15 @@ func InstallService(plan ServicePlan) error {
 		return err
 	}
 	defer release()
+	// A packaged parent can redirect AppData writes even when this process has
+	// no package identity. The scheduler must see the same executable and state.
+	// Keep this out of removal so an old redirected installation stays removable.
+	if err := verifyWindowsInstallationStatePath(plan.options.StateDir); err != nil {
+		return err
+	}
+	if err := verifyWindowsInstallationFile(plan.options.Executable); err != nil {
+		return err
+	}
 	task, receipt, owned, err := inspectWindowsTask(plan)
 	if err != nil {
 		return err
@@ -406,13 +415,16 @@ func runWindowsTask(ctx context.Context, operation string, plan ServicePlan) (wi
 	return result, nil
 }
 
-type serviceBoundedBuffer struct{ bytes.Buffer }
+type serviceBoundedBuffer struct{ buffer bytes.Buffer }
+
+func (b *serviceBoundedBuffer) Bytes() []byte  { return b.buffer.Bytes() }
+func (b *serviceBoundedBuffer) String() string { return b.buffer.String() }
 
 func (b *serviceBoundedBuffer) Write(p []byte) (int, error) {
-	if b.Len()+len(p) > 4*maxServiceFileBytes {
+	if b.buffer.Len()+len(p) > 4*maxServiceFileBytes {
 		return 0, errors.New("task output exceeds limit")
 	}
-	return b.Buffer.Write(p)
+	return b.buffer.Write(p)
 }
 
 func serviceHash(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }

@@ -1,0 +1,94 @@
+name: Windows release candidate (build only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version for a Windows build-only candidate; never publishes a GitHub release'
+        required: true
+        default: 'v0.4.0-preview.1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-only-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Native tests and vet
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-Command gcc -ErrorAction Stop | Out-Null
+          go test -race ./...
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          go vet ./...
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Offline notification protocol tests
+        shell: pwsh
+        run: |
+          ./platform/windows/notifier/build.ps1 -Test -OutputDirectory (Join-Path $env:RUNNER_TEMP 'laodi-notifier-tests')
+      - name: Build Windows candidate
+        shell: pwsh
+        run: |
+          ./scripts/release/build-windows.ps1 -Version $env:RELEASE_VERSION -SkipChecks
+      - name: Verify archive and every manifest checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $directory = Join-Path 'dist' $env:RELEASE_VERSION
+          $filename = "Laodi-skills-$env:RELEASE_VERSION-windows-amd64.zip"
+          $archivePath = Join-Path $directory $filename
+          $sum = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = [IO.File]::ReadAllText((Join-Path $directory 'SHA256SUMS-windows')).Trim()
+          if ($expected -cne "$sum  $filename") { throw 'Archive checksum does not match SHA256SUMS-windows' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            $entries = @{}
+            foreach ($entry in $archive.Entries) {
+              if ($entry.FullName -cne $entry.Name -or $entries.ContainsKey($entry.FullName)) { throw 'Non-flat or duplicate ZIP entry' }
+              $entries.Add($entry.FullName, $entry)
+            }
+            $required = @('laodi.exe','laodi-host.exe','LaodiNotify.exe','laodi-logo.png','SKILL.md','usage.md')
+            if ($entries.Count -ne ($required.Count + 1) -or -not $entries.ContainsKey('windows-manifest.json')) { throw 'Unexpected package contents' }
+            $reader = [IO.StreamReader]::new($entries['windows-manifest.json'].Open())
+            try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
+            if ($manifest.schema -ne 1 -or $manifest.protocol -ne 1 -or $manifest.version -cne $env:RELEASE_VERSION -or @($manifest.files.PSObject.Properties).Count -ne $required.Count) { throw 'Manifest contract differs from candidate' }
+            foreach ($name in $required) {
+              if (-not $entries.ContainsKey($name) -or $manifest.files.$name -cnotmatch '^[a-f0-9]{64}$') { throw "Missing required manifest entry: $name" }
+              $stream = $entries[$name].Open()
+              $hasher = [Security.Cryptography.SHA256]::Create()
+              try { $actual = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-','').ToLowerInvariant() } finally { $hasher.Dispose(); $stream.Dispose() }
+              if ($actual -cne $manifest.files.$name) { throw "Payload checksum mismatch: $name" }
+            }
+          } finally { $archive.Dispose() }
+          $info = Get-Content -LiteralPath (Join-Path $directory 'build-info-windows.json') -Raw | ConvertFrom-Json
+          if ($info.version -cne $env:RELEASE_VERSION -or $info.platform -cne 'windows/amd64' -or $info.authenticode -cne 'unsigned' -or -not $info.release_gate) { throw 'Candidate provenance is incomplete' }
+          "Windows build-only candidate: $env:RELEASE_VERSION. Native tests, offline notifier protocol and package hashes passed. Interactive client delivery, visible notifications, clean-user isolation and 24-hour acceptance remain separate release gates. No GitHub release was created or changed." >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain build-only candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-build-only-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/${{ inputs.version }}/Laodi-skills-${{ inputs.version }}-windows-amd64.zip
+            dist/${{ inputs.version }}/SHA256SUMS-windows
+            dist/${{ inputs.version }}/build-info-windows.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

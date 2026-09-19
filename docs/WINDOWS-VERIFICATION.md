@@ -1,221 +1,223 @@
 # Windows development verification
 
 Date: 2026-09-19–20 (UTC+8). Baseline: `main` / `v0.3.0-preview.2`, commit
-`3f0e33e6844a7bbaad55febe19c5d36ee6beb259`. This is a development implementation,
-**not a declaration that Windows release acceptance is complete**. The private
-handoff, account configuration, credentials, original logs and user paths are
-not included in this repository.
+`3f0e33e6844a7bbaad55febe19c5d36ee6beb259`. Final local development package:
+`v0.4.0-windows.dev12`. This is implementation and test evidence, **not completed
+Windows release acceptance**. The private handoff, user paths, account settings,
+original client logs and credentials are not included.
 
-## Platform and support boundary
+## Platform and coverage
 
-| Platform/channel | Result | Limit |
+| Platform/channel | Evidence | Boundary |
 |---|---|---|
-| Windows 11 x64, 10.0.26200, ordinary interactive user | Native core, task, local install/update/remove exercised | One existing user environment, not a clean second account |
-| Go 1.27.1 windows/amd64 | Native tests and vet; existing MinGW GCC for race tests | Build tools only; not required by installed Go executables |
-| Local fixed NTFS/ReFS | Backend explicitly requires local fixed filesystem and restricted DACL | This host exercised NTFS; ReFS has no physical-volume acceptance |
-| Windows 10, ARM64, WSL, Git Bash | Not supported/verified by this milestone | Not inferred from a successful x64 build |
-| macOS | Existing backend retained; Darwin arm64 test binaries cross-compile and vet passes | macOS CI execution is still required; cross-compilation is not native regression |
-| Real Windows client callback | Unverified; automatic Hook installation refuses before reading settings | No matching standard/PATH client found; nonstandard installation requires its actual path |
-| Real background snapshot | Not triggered / not verified | No model request or global configuration capture induced |
+| Windows 11 x64, 10.0.26200, ordinary user, NTFS | Native execution, background task, upgrades and real ZCode callbacks | One existing account; clean second-user acceptance remains open |
+| Go 1.27.1 windows/amd64 | Native race tests and vet | Go and MinGW are development tools, not product dependencies |
+| ZCode 3.14.0.7681 / GLM-5.3-Flash | Logged-in new-session Read callbacks produced two expected findings | No claim for every tool, model or client version |
+| Claude Code 2.1.278 | Unmodified public executable, eight callbacks with a loopback model fixture | No authenticated production-model session |
+| Windows ZCode background snapshots | Current 3.14 producer has an unsupported Git-checkpoint schema | No verified Windows upload parser/root; not merely waiting for an upload trigger |
+| macOS | Backend preserved; Darwin arm64 vet and both test binaries cross-compile | Native macOS CI still required |
+| ReFS, Windows 10, ARM64, WSL, Git Bash | No physical acceptance | Not inferred from Windows 11 x64 results |
 
-The exact client identity and executor boundary are in
-[WINDOWS-CLIENT-CONTRACT.md](WINDOWS-CLIENT-CONTRACT.md). Windows does not reuse
-the macOS known-build identity. Explicit `--build` use in these tests identifies
-synthetic evidence only. Monitoring does not block uploads; memory-only sends
-remain outside coverage.
+Exact client hashes and executor contracts are in
+[WINDOWS-CLIENT-CONTRACT.md](WINDOWS-CLIENT-CONTRACT.md). The independent snapshot
+review is in [windows-zcode-snapshot-contract.md](windows-zcode-snapshot-contract.md).
+The known macOS upload format is used only under explicit isolated synthetic test
+roots. Monitoring does not block uploads; memory-only sends remain outside coverage.
+
+PowerShell `Get-Content` has a verified subset. ZCode's Windows `Bash` event does
+not carry its actual shell dialect, while the client can select CMD or Git Bash.
+Its Hook shell is only the callback executor. Therefore bare `type .env` cannot
+reliably be classified as a CMD read request: in Bash it queries a command.
+CMD/Git Bash/WSL request parsing remains unsupported; output detection is separate.
+Complex or ambiguous commands are coverage gaps, not asserted file reads.
 
 ## Implemented behavior
 
-- `FOLDERID_LocalAppData` chooses the default state root. State, inbox, receipts
-  and staging use current-user/SYSTEM DACLs; parent user-directory ACLs are not
-  modified. Native handles check file identity, links and reparse attributes.
-- `LockFileEx` provides a real nonblocking process lock. Separate distribution,
-  service and Hook management locks preserve the existing lock order. Queue
-  capacity, per-entry bounds and approximately 100 ms contention budget remain.
-- A per-installation, per-user scheduled task uses an interactive token and
-  least privilege. Battery/idle settings, unlimited execution time, IgnoreNew
-  and one-minute failure backoff are explicit. Complete owned task XML and
-  receipts must match before management; no passwords are stored.
-- A private native event requests graceful stop. PID creation time and executable
-  file identity are checked before signalling. The monitor writes stopped state;
-  no executable-name kill, Agent restart or forced termination is used.
-- Immutable `versions/<tag>` payloads and an authenticated-by-local-receipt
-  current-version record route stable entry points. This is local integrity,
-  not cryptographic publisher authentication. Short-lived old children and old
-  version directories may remain; active executables are not overwritten.
-- Upgrade writes recovery material before stopping the monitor, switches the
-  small record with native same-volume replacement, checks a fresh heartbeat,
-  and restores the old selection on failure. Schema 1 and existing queue/state
-  remain compatible. Launcher protocol 1 deliberately defers stable-launcher
-  replacement; a future launcher update requires a separate migration design.
-- Recovery holds the service/Hook management locks and checks task ownership
-  before stopping anything. Health checks bind the heartbeat to the selected
-  process's creation time, including a same-version restart. An unchanged live
-  installation accepts its recent heartbeat without forcing a restart.
-- Native state publication retries transient sharing/access-denied errors for
-  at most 300 ms. A retained reader regression checks eventual publication; a
-  persistent sharing conflict still fails explicitly and preserves old state.
-- Hook routing errors are silent and fail open without executing an unverified
-  fallback. Interactive commands still report invalid installation records.
-- `install.ps1` and native `laodi update --version TAG` use official HTTPS release
-  hosts, bounded transfers, strict tags and SHA-256. ZIP validation precedes
-  extraction and rejects aliases, escapes, links, duplicate/case-colliding names
-  and oversized payloads. Checksums and package from one origin prove
-  consistency, not a publisher signature.
+- Current-user LocalAppData state, inbox, receipts and staging use restricted
+  current-user/SYSTEM DACLs. Parent ACLs stay unchanged. Native handles reject
+  reparse paths, junctions, hardlinks, ADS and aliases; storage must be local and
+  fixed. Native `LockFileEx` enforces one writer and releases on process exit.
+- Bounded Hook input, unmodified UTF-8 forwarding, private HMAC identifiers,
+  256-entry inbox, 16 KiB entry limit and approximately 100 ms contention bound
+  remain. State commits precede ACK. Raw commands, output and credential values
+  are not persisted. ZCode uses a silent native `-c` bridge; Claude uses argv.
+- Verified client integration preserves foreign JSON fields and ACLs, records
+  exact owned entries and rejects user edits. Unknown bytes are not granted a
+  known contract by display version. Removal preserves unrelated configuration.
+- Per-user/per-installation Task Scheduler registration uses an interactive
+  token and least privilege, no password, explicit battery/idle settings,
+  unlimited duration, IgnoreNew and one-minute failure backoff. Management
+  requires matching XML/receipts. Graceful stop checks PID creation time and
+  executable identity before signalling a private native event; no kill by name.
+- Immutable version directories and a protected version record route stable
+  launchers. Recovery, fresh-heartbeat checks and bounded sharing retries restore
+  the old version on failure. State, deduplication, inbox, HMAC, root and
+  integration identities survive updates. Healthy same-version installs keep
+  the process. Stable-launcher replacement needs a separate protocol migration;
+  active executables are not overwritten.
+- Packaged notifications have stable AUMID, current-user shortcut/COM registration
+  and the existing logo. Enable/disable is read per event without restarting or
+  replaying history. Registration follows successful installation health; locked
+  preflight rejects dropping a registered helper or changing stable artwork.
+  Partial registration and pending upgrade recovery remain explicit and owned.
+- `install.ps1` and `laodi update --version TAG` enforce official HTTPS origins,
+  time/size bounds, tags, hashes and strict ZIP paths before extraction. No third-
+  party runtime is installed; the helper uses system .NET/WinRT. Same-origin
+  hashes prove consistency, not publisher signing. Packages remain unsigned
+  development artifacts; no official Windows release was published.
+- Final-handle path checks reject MSIX-redirected or mixed real/virtual installs.
+  Registration verifies newly owned registry keys resolve to the ordinary user
+  Classes hive. Host isolation settings are not changed.
 
-The root README and its macOS installation command remain unchanged. There is
-no public Windows release URL advertised as usable yet. No Authenticode signing
-is applied. No Defender, SmartScreen, TLS or execution-policy setting is changed.
+Root README, macOS installer, notifier and release workflow are unchanged from
+the baseline. Windows has a separate build-only workflow. No Defender,
+SmartScreen, execution policy, TLS or client permissions were changed.
 
-## Expected, actual, evidence and limits
+## Native validation and installation
 
-| Case ID | Expected | Actual/evidence | Limit |
-|---|---|---|---|
-| WIN-BASELINE | Identify native blockers | Clean baseline native tests fail on Unix permissions/locks, shell helpers and unprivileged symlink creation | Separate baseline checkout; failures were not hidden |
-| WIN-CORE | Private state and one writer | Native store/inbox/DACL/ADS/hardlink/junction/case-alias tests pass, including child exit lock release | No second-user impersonation, disk-full or physical power-loss test |
-| WIN-TASK | Least-privilege task starts and owns only itself | Native create/query/delete and full install/watch/graceful-stop/remove tests pass; edited/foreign task tests refuse changes | Policy denial is injected; sleep/logoff/battery/multi-user lifecycle not physically exercised |
-| WIN-INSTALL | One-command local package install | PowerShell bootstrap verifies local package hash and installs into isolated state; hidden task publishes a heartbeat | Local development package, not an official hosted release or clean-user test |
-| WIN-UPGRADE | A→B and B→B | `v0.4.0-windows.test1`→`test2` selects B; B→B keeps PID and process creation time | Development builds; no client configuration installed |
-| WIN-ROLLBACK | Failed B retains usable A | Deliberately exiting synthetic version host causes health failure; exit 1, old version/heartbeat restored, journal cleared | Process failure, not actual machine power loss |
-| WIN-RECOVERY | Journal survives interrupted stages | Synthetic journal-published/pointer-switched/new-started cases recover before retry; removal cannot erase pending recovery | Boundary-state reconstruction, not crash injection at every filesystem instruction |
-| WIN-ARCHIVE | Reject hostile archives before running code | Go archive tests plus 11 PowerShell bootstrap cases reject traversal, ADS, device/alias names, duplicate/case collisions and wrong checksum | Expanded-size limits also enforced; not a general ZIP implementation |
-| WIN-REMOVE | Remove only owned integration, preserve history | Native task/receipt removed; process receipt gone; saved state stopped and history retained | Executables/immutable versions retained for safe later cleanup |
-| WIN-PRIVACY | No raw credential output persisted | Sequential synthetic replay verifies redacted state and summaries | Synthetic invalid credential only; no real API key used |
+The complete integration `go test -race -json ./...` run passed **405 tests/subtests,
+88 skipped, 0 failed**. Skips include macOS/Unix cases and opt-in native fixtures;
+they are not passes. Native `go vet ./...` passed. Subsequent final notification
+and path guards passed focused race regressions and vet. Overlapping suites must
+not be summed into independent case counts. Offline helper tests passed 90
+protocol assertions using fake delegates and zero notification API calls.
 
-Final instrumented run: `go test -race -json ./...` passed **306 tests/subtests**
-with **82 skips** and no failures. Skips are reported, not counted as passes:
-macOS distribution/service/configuration mechanisms, Unix permission semantics,
-and two opt-in native Task Scheduler integration cases. Native `go vet ./...`
-passes. Darwin arm64 vet and both test binaries cross-compile; no macOS native
-test was run on this Windows host.
+| Case | Result | Limit |
+|---|---|---|
+| Private state/inbox/file identity | Native DACL/link/alias/reparse/ADS/lock replacement and process-exit tests pass | No second ordinary-user access test |
+| Task management and graceful stop | Exact ownership, edited/foreign refusal, stopped-state persistence pass | Sleep/battery/logoff not physically tested |
+| Archive/bootstrap | Go archive cases and 11 hostile PowerShell bootstrap inputs rejected | No formal hosted Windows release |
+| Transfer failures | Loopback TLS redirect/network/truncation/bounds tests pass | Not an official release download |
+| Transaction recovery | Updater child terminated at eight stages; interrupted recovery and sharing-conflict rollback pass | No physical power-loss/full-disk test |
+| Notification transaction | Failed health never registers new helper; missing helper/artwork rejected before selection; locks and preference cases pass | Show/visibility separate |
+| Removal | Exact owned integrations removed, historical state retained | Immutable executable versions retained for safe later cleanup |
 
-The separate uninstrumented final run enabled both native Task Scheduler cases
-with the final hidden monitor executable: **308 tests/subtests passed, 80
-skipped, zero failures**. The two counts describe overlapping suites, not 614
-independent cases. The PowerShell bootstrap also rejected all 11 hostile inputs
-against the final `dev8` package. The Skill's PowerShell command discovery was
-checked against that executable; frontmatter and reference links were reviewed
-manually because the bundled validator lacked PyYAML. No dependency was added.
+The first apparent default install was redirected by the Codex MSIX host and
+invisible to Task Scheduler. It was not a successful ordinary install. Final
+validation ran the reviewed local package in the ordinary interactive user
+context through exact-owned temporary test tasks. All temporary tasks were
+removed only after their XML matched.
 
-The final local PowerShell package sequence was `v0.4.0-windows.dev7` first
-install, `dev7` to `dev8` upgrade, then `dev8` reinstall. It ran from
-`2026-09-19T16:16:33Z` to `16:17:11Z`. Reinstall preserved PID and creation time;
-a deliberately exiting new host returned exit 1 and restored the selected
-`dev8` monitor with a fresh heartbeat. Exact task/process receipts were removed
-afterward and stopped historical state remained. Earlier native coverage also
-verified reinstalling a newer version after removing its owned background task.
+The actual default installation passed dev9→dev10→dev11→dev12 plus same-version
+reinstalls. Final dev11→dev12→dev12 validation ran from
+`2026-09-19T17:42:17Z` to `17:42:43Z`. The two real events, HMAC, configuration,
+Hook entries, integration/task receipts, root identity and stable host hashes
+were retained. Repeating dev12 preserved PID/creation time. Registered notification
+identity survived A→B→B; a real COM callback completed without Show. The formal
+monitor remains running. The user's ZCode process was never restarted.
 
-## Classification and tool replay
+## Actual callbacks and privacy
 
-Native Windows PowerShell 5.1 runs `scripts/dev/verify-windows.ps1`. Final
-sequential replay completed at `2026-09-19T16:20:24Z`, using development binary
-`v0.4.0-windows.dev8`, SHA-256
-`5b854d51d21e3173bada618d6e92caa0935c2585a2dbd7b4b1efd97ef12a2a6f`.
-The ten independent expected event records produced **TP=10, FN=0, FP=0**;
-five explicit negative assertions produced **TN=5**. These are separate raw
-counts, not an overall accuracy or all-client detection-rate claim.
+After model availability/CAPTCHA problems were resolved by the user, a new logged-
+in ZCode session used Read on three isolated synthetic files: README, ordinary
+text and an `.env` containing an invalid test credential. UI completion and actual
+monitor records agree. At `2026-09-19T17:33:58.4900638Z`, exactly two new
+`source=zcode` records appeared: `sensitive_tool_access_requested` / `env_file`
+and `sensitive_tool_output_detected` / `credential_assignment`, count 1 each.
+Notification states were respectively `recorded_only` and `not_configured`.
+Diagnostics were empty, dropped events zero, and the queue drained with no gap.
+These observations do not establish an overall detection rate.
 
-The replay checks Git-object vs ordinary-workspace classification, main vs extra
-manifest association, attempts vs acceptance, large failure counts not becoming
-attempts, sensitive access vs invalid credential output, failed tool output,
-negative outputs, privacy redaction and restart deduplication (zero duplicate
-events). First observable and first observed persistence times are recorded per
-case in the local evidence. This does not reproduce a host's real upload.
+An ordinary-context read-only privacy check at `17:40:26Z` found no fixed invalid
+fixture value in current state or pending queue. Field names matched the closed
+schema; Hook metadata held only fixed categories or hashes. Zero pending files
+existed at that snapshot; this does not claim inspection of every historical
+queue file. No real API key was used or exposed.
 
-An additional **32-process simultaneous Hook burst** saved 11 credential event
-records and lost 21 in the first measurement. The final run used a stdin release
-barrier and saved 4, losing 28 to bounded contention:
-**TP=4, FN=28, FP=0; TN not applicable**. The sticky `hook_inbox_gap_recorded`
-diagnostic persisted correctly. Gap visibility passes its safety contract;
-individual delivery is not lossless. Sequential and burst denominators must not
-be merged or the losses omitted. This is a release/performance limitation to
-evaluate with real client traffic.
+Claude's isolated real-executable test observed eight Read/PowerShell callbacks,
+including a failed Read, and two expected output findings. UTF-8/special-character
+argv survived; a delayed independent probe exiting 7 did not block client results.
+Its deterministic model was local, with no login or paid request. An independent
+Node test verified ZCode's native shell/GUI host/version routing chain. These
+fixtures are distinct from the authenticated ZCode session above.
 
-Synthetic Git init/add/commit/status/diff/log all exit 0; subsequent HEAD and
-index checks match. Observed process-inclusive durations were approximately
-47–85 ms in the final run. There is no unmonitored baseline comparison, so these values do not
-measure added monitor overhead. No running Agent was restarted.
+## Synthetic replay and concurrency
 
-## Resources
+Windows PowerShell 5.1 replay of dev12 completed `2026-09-19T17:40:52Z`.
+CLI SHA-256: `5b8d7bf399327327cad362e7d1679049a1a7c981875cfb4305a4db34f6403178`.
+Sequential classification: **TP=10, FN=0, FP=0, TN=5** (ten independent expected
+events, five negative assertions). Cases distinguish Git/ordinary workspaces,
+main/extra stages, attempts/acceptance, high failure counts/attempts, access/output,
+failed output and negative hash/UUID/placeholders. Restart duplicates: zero.
+Raw credential text was absent and summaries redacted.
 
-Development binary SHA-256 `6e1a96b080f528ac7fe9a90d103f55b6cf526136a702b8aa1adef56050df7422`
-was sampled natively with `Get-Process` for about 22 seconds per fixture.
-Values cover the monitor PID only; Hook/notifier bursts
-and the launcher parent are not included in this table.
+A separate 32-process simultaneous stdin-barrier burst produced **TP=5, FN=27,
+FP=0; TN not applicable**. The sticky `hook_inbox_gap_recorded` diagnostic persisted.
+This meets bounded failure reporting, **not lossless delivery**. The short lock
+budget and durable writes remain; concurrency loss is a known performance limit.
+Sequential and burst denominators must not be merged. The burst observed up to
+33 processes, 343,674,880 bytes summed working set, 1,595,645,952 bytes summed
+private memory, 4,934 handles and 1.046875 cumulative Hook CPU seconds; no notifier.
+
+Synthetic Git init/add/commit/status/diff/log returned 0 and preserved HEAD/index.
+Durations including startup were about 48–98 ms without an unmonitored baseline;
+these are not added-overhead measurements. No fake record was written into real
+client checkpoints.
+
+## Resources and long run
+
+Final dev12 monitor-only native samples, approximately 22 seconds each:
 
 | Fixture | CPU seconds | Maximum sampled working set | Maximum sampled private bytes | Maximum sampled handles |
 |---|---:|---:|---:|---:|
-| Empty evidence root | 0.1875 | 15,773,696 | 50,343,936 | 266 |
-| 100 manifests | 0.375 | 20,062,208 | 54,358,016 | 296 |
-| One manifest, 42,411 entries | 0.25 | 20,131,840 | 54,804,480 | 290 |
+| Empty evidence root | 0.078125 | 16,306,176 | 51,073,024 | 262 |
+| 100 manifests | 0.890625 | 20,774,912 | 55,656,448 | 292 |
+| One manifest, 42,411 entries | 0.296875 | 20,180,992 | 54,562,816 | 288 |
 
-The separate final 32-Hook burst observed 33 total processes including the
-monitor, 491,216,896 bytes summed working set, 1,624,043,520 bytes summed private
-memory, 7,561 handles and 2.109375 cumulative Hook CPU seconds. These sampled
-totals demonstrate why a per-process bound is not a bound on arbitrary client
-concurrency. No notification process ran in this resource measurement.
+Samples may miss peaks. Startup is included; CPU is cumulative process time.
+These are not ceilings or 24-hour results and exclude notifier children.
 
-Samples can miss transient peaks. Startup is included; CPU seconds are cumulative
-process time, not a percentage of total system capacity. These short observations
-do not prove a memory ceiling or 24-hour stability. `measure-windows.ps1` accepts
-`-DurationSeconds 86400`, writes bounded progress samples and records scheduling
-gaps; sleep/resume is never inferred from elapsed duration alone.
+Final dev12 24-hour sampling started `2026-09-19T17:43:21Z`
+(2026-09-20 01:43 UTC+8), using the exact hash above and 100 synthetic manifests.
+The user subsequently cancelled the 24-hour requirement and requested functional
+verification only. The exact synthetic monitor was gracefully stopped and its
+follow-up automation paused; the actual installed monitor remains running.
+**The long run is cancelled, not passed and not still pending.** Earlier dev5/dev8
+short runs also do not establish 24-hour stability. The harness requires both OS
+start-to-exit lifetime and wall duration; a healthy early exit fails its original
+duration criterion. No sleep/resume result is inferred.
 
-The final 24-hour run started at `2026-09-19T16:17:27Z` (2026-09-20 00:17 UTC+8),
-using `v0.4.0-windows.dev8`, SHA-256
-`5b854d51d21e3173bada618d6e92caa0935c2585a2dbd7b4b1efd97ef12a2a6f`, with 100
-synthetic manifests. It is **still running, not passed** at this report's commit.
-Sampler/monitor identity, unchanged hash, progressing samples and empty error
-output were checked. A local follow-up checks completion/failure and will update
-this report. Do not infer sleep/resume acceptance from that future duration.
+## Notifications and remaining acceptance
 
-Earlier interrupted runs do not count toward 24 hours. One failed before monitor
-startup; one dev5 run was deliberately stopped after about 704.6 seconds to
-switch to final code. Its original harness had omitted the duration condition;
-that result was invalidated and retained locally with the correction. The fixed
-harness requires the monitor's own start-to-exit lifetime and observed wall time
-to meet the requested duration. A 5-second run passed at 5.118 seconds, while an
-otherwise healthy, exit-0 early stop at 1.182 seconds correctly failed.
+Ordinary-context registration and direct COM callback passed. Final registration
+is retained. Early `Setting`
+queries returned `0x80070490` and correctly reported `authorization: unknown`.
+The user's later ordinary-PowerShell manual `notifications test` returned
+`delivery: accepted_by_os`, `authorization: enabled`, and verified registration.
+The user subsequently found the notification in Notification Center, reported
+Do Not Disturb off, and supplied a screenshot of the visible banner after another
+manual test. The Laodi icon and Chinese title/body are visibly correct. Both API
+acceptance and human-visible delivery have therefore passed for this machine.
+The program still reports Focus Assist as unknown; it does not infer this from
+API acceptance. After confirmation, `notifications enable` set the preference
+to true without sending a test notification. Ordinary-context status showed
+enabled/verified; monitor/client identities, registration and both existing events
+were unchanged. No historical event was replayed. See
+[notification documentation](../platform/windows/notifier/README.md).
 
-## Notification and remaining release gates
+An earlier synthetic send failed before Show. Automatic approval review rejected
+a later scheduled Show attempt with only `blocked by policy`; it was not executed
+or retried through another automated route. The user subsequently ran the final
+command manually and supplied the successful API result above. The first manual
+command had omitted its arguments and displayed help; that was not a send.
+The screenshot/user confirmation provides the visibility evidence separately
+from COM/offline tests. Real notification click activation, disabled-mode and
+Do Not Disturb suppression behavior remain untested.
 
-The helper uses the system .NET Framework compiler/runtime and WinRT metadata;
-there are no NuGet or other third-party dependencies. It is a short-lived GUI
-subsystem executable, with stable AUMID, current-user shortcut/COM activation and
-the existing Laodi logo. See [its platform documentation](../platform/windows/notifier/README.md).
-
-Initial exact registration/query/removal works. The first synthetic notification
-attempt on this host failed **before `Show`**, at `CreateToastNotifier`, with
-`0x80070490`; it was not submitted to the OS and is not a visible-notification
-success. Later creation became available while the settings query still returned
-the same error. Automatic approval review then rejected the scheduled synthetic
-`Show` action with only `blocked by policy`; it was not executed or retried through
-another route. Test registrations and tasks were removed with ownership checks.
-The helper remains experimental and is not connected by the Windows installer.
-API acceptance, notification settings, Do Not Disturb and human-visible
-presentation remain separate facts. No permission prompt is expected on Windows.
-
-Outstanding gates include a real supported client's new-session callback,
-visible notification confirmation, clean second-user DACL/install acceptance,
-sleep/battery/logoff/multi-user tests, 24-hour completion, macOS native CI,
-official release publication, full transfer-failure testing and every-stage
-crash/disk-full recovery. The current branch must not be labelled fully accepted
-Windows support until those gates have evidence. Global configuration testing
-remains unperformed and requires an independent logged-in test user.
+Functional delivery does not claim 24-hour stability; that test was explicitly
+removed from this task by the user. Other unperformed release acceptance includes
+clean ordinary-user install and cross-user DACL isolation, sleep/battery/logoff/
+multi-user lifecycle, real task-crash restart, physical disk-full recovery, native
+macOS CI and a reviewed formal Windows release. Real Windows snapshot upload
+monitoring remains unsupported for inspected 3.14 bytes. Global configuration
+testing was not performed; it needs an independent logged-in test account and is
+outside current-user synthetic-project scope.
 
 ## Reproduction
 
-Run the native Go tests and vet, then build a development package:
-
-```powershell
-go test ./...
-go vet ./...
-# Requires a native C compiler for the race detector, only on developer/CI hosts.
-go test -race ./...
-./scripts/release/build-windows.ps1 -Version v0.4.0-windows.test
-```
-
-Use a separate state directory for synthetic workflows. Do not point a fixture
-writer at actual client checkpoints. Generated packages live under ignored
-`dist/`; test outputs belong outside the repository or in ignored local storage.
-Review staged changes for user paths/configuration before publication.
+Run native tests/vet and optionally race tests with a development C compiler, then
+`scripts/release/build-windows.ps1 -Version v0.4.0-windows.test`. Use
+`scripts/dev/verify-windows.ps1` and `measure-windows.ps1` with isolated test state.
+Opt-in exact-client fixtures are documented in the client contract. Outputs belong
+in ignored `dist/` or outside the repo. Use ordinary PowerShell for default install;
+virtualized MSIX paths are rejected. Do not publish raw local/client evidence.

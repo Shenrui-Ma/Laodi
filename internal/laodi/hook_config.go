@@ -2,8 +2,6 @@ package laodi
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -16,40 +14,47 @@ import (
 
 const maxHookConfigBytes = 2 << 20
 
-var ErrWindowsHookContractUnverified = errors.New("Windows hook installation is unavailable: no local client build/executor contract has been verified; no client settings were read or changed")
+var ErrWindowsHookContractUnverified = errors.New("Windows hook installation requires an exact reviewed client build/executor contract; no client settings were changed")
 
 type HookConfigOptions struct {
 	Adapter, Executable, StateDir, Home string
+	ClientExecutable                    string
+	Remove                              bool
 }
 
 // HookConfigPlan contains only Laodi's proposed configuration, never existing
-// settings. Creating a plan neither reads settings contents nor writes files.
+// settings. Install previews read only public identity/path metadata; removal
+// previews also read Laodi's private ownership receipt. Neither writes files.
 type HookConfigPlan struct {
-	Adapter       string          `json:"adapter"`
-	ConfigPath    string          `json:"config_path"`
-	ReceiptPath   string          `json:"receipt_path"`
-	Command       string          `json:"command"`
-	Configuration json.RawMessage `json:"configuration"`
-	Events        []string        `json:"events"`
-	Tools         []string        `json:"tools"`
-	options       HookConfigOptions
+	Adapter        string               `json:"adapter"`
+	ConfigPath     string               `json:"config_path"`
+	ReceiptPath    string               `json:"receipt_path"`
+	Command        string               `json:"command"`
+	Arguments      []string             `json:"arguments,omitempty"`
+	Shell          string               `json:"shell,omitempty"`
+	ClientContract *WindowsHookContract `json:"client_contract,omitempty"`
+	Configuration  json.RawMessage      `json:"configuration"`
+	Events         []string             `json:"events"`
+	Tools          []string             `json:"tools"`
+	options        HookConfigOptions
 }
 
 type hookConfigReceipt struct {
-	Version         int             `json:"version"`
-	Adapter         string          `json:"adapter"`
-	ConfigPath      string          `json:"config_path"`
-	Entry           json.RawMessage `json:"entry"`
-	Events          []string        `json:"events"`
-	PreviousEnabled string          `json:"previous_enabled,omitempty"`
-	CreatedHooks    bool            `json:"created_hooks"`
-	CreatedEvents   bool            `json:"created_events"`
-	CreatedNames    []string        `json:"created_event_names"`
+	Version         int                  `json:"version"`
+	Adapter         string               `json:"adapter"`
+	ConfigPath      string               `json:"config_path"`
+	Entry           json.RawMessage      `json:"entry"`
+	Events          []string             `json:"events"`
+	PreviousEnabled string               `json:"previous_enabled,omitempty"`
+	CreatedHooks    bool                 `json:"created_hooks"`
+	CreatedEvents   bool                 `json:"created_events"`
+	CreatedNames    []string             `json:"created_event_names"`
+	ClientContract  *WindowsHookContract `json:"client_contract,omitempty"`
 }
 
 func PlanHookConfig(options HookConfigOptions) (HookConfigPlan, error) {
 	if runtime.GOOS == "windows" {
-		return HookConfigPlan{}, ErrWindowsHookContractUnverified
+		return planWindowsHookConfig(options)
 	}
 	if options.Adapter != "zcode" && options.Adapter != "claude-code" {
 		return HookConfigPlan{}, errors.New("hook adapter must be zcode or claude-code")
@@ -123,7 +128,14 @@ func hookShellQuote(value string) string {
 }
 
 func hookConfigEntry(plan HookConfigPlan) map[string]any {
-	return map[string]any{"matcher": "Bash|Read", "hooks": []any{map[string]any{"type": "command", "command": plan.Command, "async": true}}}
+	hook := map[string]any{"type": "command", "command": plan.Command, "async": true}
+	if plan.Arguments != nil {
+		hook["args"] = plan.Arguments
+	}
+	if plan.Shell != "" {
+		hook["shell"] = plan.Shell
+	}
+	return map[string]any{"matcher": strings.Join(plan.Tools, "|"), "hooks": []any{hook}}
 }
 
 func validateHookConfigPlan(plan HookConfigPlan) error {
@@ -144,14 +156,24 @@ func lockHookConfig(plan HookConfigPlan) (func(), error) {
 }
 
 func InstallHookConfig(plan HookConfigPlan) error {
+	if plan.options.Remove {
+		return errors.New("a removal plan cannot install hooks")
+	}
 	if err := validateHookConfigPlan(plan); err != nil {
 		return err
 	}
+	return installHookConfig(plan)
+}
+
+func installHookConfig(plan HookConfigPlan) error {
 	release, err := lockHookConfig(plan)
 	if err != nil {
 		return err
 	}
 	defer release()
+	if err := verifyHookInstallState(plan); err != nil {
+		return err
+	}
 	data, mode, err := readHookConfigFile(plan.ConfigPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -184,7 +206,10 @@ func InstallHookConfig(plan HookConfigPlan) error {
 	if err != nil {
 		return err
 	}
-	receipt := hookConfigReceipt{Version: 1, Adapter: plan.Adapter, ConfigPath: plan.ConfigPath, Events: plan.Events, CreatedHooks: !hadHooks}
+	receipt := hookConfigReceipt{Version: 1, Adapter: plan.Adapter, ConfigPath: plan.ConfigPath, Events: plan.Events, CreatedHooks: !hadHooks, ClientContract: plan.ClientContract}
+	if plan.ClientContract != nil {
+		receipt.Version = 2
+	}
 	if plan.Adapter == "claude-code" {
 		if err := checkHookEnabled(config, plan.Adapter); err != nil {
 			return err
@@ -414,7 +439,11 @@ func decodeHookReceipt(data []byte, plan HookConfigPlan) (hookConfigReceipt, err
 	var receipt hookConfigReceipt
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&receipt); err != nil || receipt.Version != 1 || receipt.Adapter != plan.Adapter || receipt.ConfigPath != plan.ConfigPath || !reflect.DeepEqual(receipt.Events, plan.Events) {
+	expectedVersion := 1
+	if plan.ClientContract != nil {
+		expectedVersion = 2
+	}
+	if err := decoder.Decode(&receipt); err != nil || receipt.Version != expectedVersion || receipt.Adapter != plan.Adapter || receipt.ConfigPath != plan.ConfigPath || !reflect.DeepEqual(receipt.Events, plan.Events) || !reflect.DeepEqual(receipt.ClientContract, plan.ClientContract) {
 		return hookConfigReceipt{}, errors.New("invalid hook ownership receipt")
 	}
 	if receipt.PreviousEnabled != "" && receipt.PreviousEnabled != "absent" && receipt.PreviousEnabled != "true" && receipt.PreviousEnabled != "false" {
@@ -512,120 +541,4 @@ func marshalHookConfig(config map[string]any) ([]byte, error) {
 		return nil, errors.New("hook settings exceed 2 MiB limit")
 	}
 	return append(data, '\n'), nil
-}
-
-func checkHookPath(home, path string) error {
-	rel, err := filepath.Rel(home, path)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return errors.New("hook settings path must remain inside the selected home")
-	}
-	current := home
-	parts := strings.Split(rel, string(filepath.Separator))
-	for i, part := range parts {
-		current = filepath.Join(current, part)
-		info, err := os.Lstat(current)
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		if err != nil || info.Mode()&os.ModeSymlink != 0 || (i < len(parts)-1 && !info.IsDir()) || (i == len(parts)-1 && !info.Mode().IsRegular()) {
-			return errors.New("hook settings paths must not contain symbolic links or special files")
-		}
-	}
-	return nil
-}
-
-func ensureHookConfigParent(plan HookConfigPlan) error {
-	if err := checkHookPath(plan.options.Home, plan.ConfigPath); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(plan.ConfigPath), 0700); err != nil {
-		return errors.New("cannot create hook settings directory")
-	}
-	return checkHookPath(plan.options.Home, plan.ConfigPath)
-}
-
-func readHookConfigFile(path string) ([]byte, os.FileMode, error) {
-	parent, err := os.OpenRoot(filepath.Dir(path))
-	if err != nil {
-		return nil, 0600, err
-	}
-	defer parent.Close()
-	name := filepath.Base(path)
-	before, err := parent.Lstat(name)
-	if err != nil {
-		return nil, 0600, err
-	}
-	if !before.Mode().IsRegular() || before.Mode().Perm()&0022 != 0 {
-		return nil, 0, errors.New("hook settings must be a regular file without group or world write permission")
-	}
-	f, err := openExistingStateFile(parent, name, os.O_RDONLY)
-	if err != nil {
-		return nil, 0, errors.New("cannot safely open hook settings")
-	}
-	defer f.Close()
-	opened, err := f.Stat()
-	after, afterErr := parent.Lstat(name)
-	if err != nil || afterErr != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) || !os.SameFile(after, opened) {
-		return nil, 0, errors.New("hook settings changed while opening")
-	}
-	data, err := io.ReadAll(io.LimitReader(f, maxHookConfigBytes+1))
-	if err != nil || len(data) > maxHookConfigBytes {
-		return nil, 0, errors.New("hook settings are unreadable or exceed 2 MiB")
-	}
-	return data, before.Mode().Perm(), nil
-}
-
-func replaceHookConfigFile(path string, data, expected []byte, mode os.FileMode) error {
-	if len(data) > maxHookConfigBytes {
-		return errors.New("hook settings exceed 2 MiB limit")
-	}
-	parent, err := os.OpenRoot(filepath.Dir(path))
-	if err != nil {
-		return errors.New("cannot open hook settings parent")
-	}
-	defer parent.Close()
-	var random [16]byte
-	if _, err := rand.Read(random[:]); err != nil {
-		return errors.New("cannot name hook settings temporary file")
-	}
-	name := ".laodi-hook-" + hex.EncodeToString(random[:]) + ".tmp"
-	f, err := parent.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
-	if err != nil {
-		return errors.New("cannot create hook settings temporary file")
-	}
-	defer parent.Remove(name)
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		return errors.New("cannot write hook settings")
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		return errors.New("cannot sync hook settings")
-	}
-	if err := f.Close(); err != nil {
-		return errors.New("cannot close hook settings")
-	}
-	current, currentMode, err := readHookConfigFile(path)
-	if expected == nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return errors.New("hook settings appeared during installation; refusing to replace them")
-		}
-		// Publishing a previously absent file must be atomic and no-clobber.
-		if err := parent.Link(name, filepath.Base(path)); err != nil {
-			return errors.New("cannot publish new hook settings")
-		}
-	} else {
-		if err != nil || !bytes.Equal(expected, current) || currentMode != mode {
-			return errors.New("hook settings changed during installation; retry after the other editor finishes")
-		}
-		if err := parent.Rename(name, filepath.Base(path)); err != nil {
-			return errors.New("cannot atomically replace hook settings")
-		}
-	}
-	dir, err := parent.Open(".")
-	if err != nil {
-		return errors.New("hook settings saved but directory cannot be opened for sync")
-	}
-	defer dir.Close()
-	return dir.Sync()
 }

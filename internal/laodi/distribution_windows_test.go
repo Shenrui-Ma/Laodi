@@ -68,7 +68,7 @@ func TestWindowsIdenticalInstallAcceptsRecentHeartbeatWithoutRestart(t *testing.
 
 func (h *windowsDistributionHarness) plan(t *testing.T, source, state string) DistributionPlan {
 	t.Helper()
-	p, err := PlanDistribution(DistributionOptions{SourceDir: source, StateDir: state, Home: filepath.Dir(state)})
+	p, err := PlanDistribution(DistributionOptions{SourceDir: source, StateDir: state, Home: filepath.Dir(state), AppCandidates: []string{}})
 	if err != nil {
 		t.Fatal(err)
 	}

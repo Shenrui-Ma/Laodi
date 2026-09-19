@@ -29,6 +29,8 @@ try {
     & $Go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$Version" -o (Join-Path $payload 'laodi-host.exe') ./cmd/laodi
     if ($LASTEXITCODE -ne 0) { throw 'Hidden host build failed' }
     Copy-Item -LiteralPath (Join-Path $repo 'assets/laodi-logo.png') -Destination $payload
+    & (Join-Path $repo 'platform/windows/notifier/build.ps1') -OutputDirectory $payload
+    if (-not $?) { throw 'Windows notification helper build failed' }
     $skill = [IO.File]::ReadAllText((Join-Path $repo 'skills/laodi/SKILL.md')).Replace('references/usage.md','usage.md')
     [IO.File]::WriteAllText((Join-Path $payload 'SKILL.md'), $skill, [Text.UTF8Encoding]::new($false))
     Copy-Item -LiteralPath (Join-Path $repo 'skills/laodi/references/usage.md') -Destination $payload

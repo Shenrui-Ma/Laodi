@@ -30,21 +30,23 @@ type DistributionOptions struct {
 	Remove               bool // plan explicit removal without requiring installed tools to remain present
 	LookPath             func(string) (string, error)
 	AppCandidates        []string // nil selects standard application locations
+	ClientExecutable     string   // Windows: explicit reviewed client executable
 }
 
 type DistributionPlan struct {
-	SourceDir            string   `json:"source_dir"`
-	StateDir             string   `json:"state_dir"`
-	RuntimeDir           string   `json:"runtime_dir"`
-	Executable           string   `json:"executable"`
-	Notifier             string   `json:"notifier"`
-	Adapters             []string `json:"adapters"`
-	App                  string   `json:"app,omitempty"`
-	HooksOnly            bool     `json:"hooks_only"`
-	FileCount            int      `json:"file_count"`
-	RequestNotifications bool     `json:"request_notifications"`
-	Upgrade              bool     `json:"upgrade"`
-	PendingRecovery      bool     `json:"pending_recovery"`
+	SourceDir            string                `json:"source_dir"`
+	StateDir             string                `json:"state_dir"`
+	RuntimeDir           string                `json:"runtime_dir"`
+	Executable           string                `json:"executable"`
+	Notifier             string                `json:"notifier"`
+	Adapters             []string              `json:"adapters"`
+	App                  string                `json:"app,omitempty"`
+	HooksOnly            bool                  `json:"hooks_only"`
+	FileCount            int                   `json:"file_count"`
+	RequestNotifications bool                  `json:"request_notifications"`
+	Upgrade              bool                  `json:"upgrade"`
+	PendingRecovery      bool                  `json:"pending_recovery"`
+	WindowsClients       []WindowsHookContract `json:"windows_clients,omitempty"`
 	options              DistributionOptions
 	files                map[string]string
 	serviceRunner        func(context.Context, ...string) error

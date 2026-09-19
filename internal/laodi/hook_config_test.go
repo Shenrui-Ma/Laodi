@@ -15,7 +15,7 @@ import (
 func testHookConfigPlan(t *testing.T, adapter string) HookConfigPlan {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("Windows client hook install contract is not verified; POSIX configuration tests do not apply")
+		t.Skip("POSIX shell configuration; native Windows ownership/ACL behavior is covered by hook_config_windows_test.go")
 	}
 	home := t.TempDir()
 	executable := filepath.Join(home, "laodi")
@@ -200,7 +200,7 @@ func TestHookUninstallRefusesEditedOwnedEntry(t *testing.T) {
 
 func TestHookShellQuotePreventsExecutionAndVendorInterpolation(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("POSIX shell quoting; Windows hook executor contract remains unverified")
+		t.Skip("POSIX shell quoting; Windows uses direct argv or the versioned native shell bridge")
 	}
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "must-not-exist")

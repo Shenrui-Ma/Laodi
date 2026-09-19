@@ -4,6 +4,7 @@ $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $WorkDir=[IO.Path]::GetFullPath($WorkDir)
 New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $bootstrapPackage=(Resolve-Path -LiteralPath $Package).Path
 $bootstrapResults=[Collections.Generic.List[object]]::new()

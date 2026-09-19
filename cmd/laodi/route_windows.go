@@ -12,7 +12,7 @@ import (
 func routeInstalled(args []string) (bool, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		if len(args) > 0 && args[0] == "hook" {
+		if isWindowsHookInvocation(args) {
 			return true, nil
 		}
 		return true, err
@@ -21,7 +21,7 @@ func routeInstalled(args []string) (bool, error) {
 }
 
 func routeWindowsExecutable(exe string, args []string) (handled bool, err error) {
-	hook := len(args) > 0 && args[0] == "hook"
+	hook := isWindowsHookInvocation(args)
 	// The launcher is part of the observer's fail-open boundary. Invalid
 	// routing must neither run an unverified fallback nor fail an Agent tool.
 	defer func() {
@@ -44,8 +44,12 @@ func routeWindowsExecutable(exe string, args []string) (handled bool, err error)
 		cmd.Stdout = io.Discard
 		cmd.Stderr = io.Discard
 	}
-	if len(args) > 0 && (args[0] == "watch" || args[0] == "hook") {
+	if hook || (len(args) > 0 && args[0] == "watch") {
 		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 	}
 	return true, cmd.Run()
+}
+
+func isWindowsHookInvocation(args []string) bool {
+	return len(args) > 0 && (args[0] == "hook" || args[0] == "-c")
 }

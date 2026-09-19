@@ -317,7 +317,16 @@ func planWindowsDistribution(options DistributionOptions) (DistributionPlan, err
 			return DistributionPlan{}, errors.New("install paths must be clean absolute paths")
 		}
 	}
+	if !options.Remove {
+		if err := verifyWindowsInstallationStatePath(options.StateDir); err != nil {
+			return DistributionPlan{}, err
+		}
+	}
 	p := DistributionPlan{SourceDir: options.SourceDir, StateDir: options.StateDir, RuntimeDir: filepath.Join(options.StateDir, "versions"), Executable: filepath.Join(options.StateDir, "laodi.exe"), HooksOnly: true, Adapters: []string{}, RequestNotifications: options.RequestNotifications, options: options, healthCheck: waitWindowsDistributionHealth, windowsService: windowsDistributionService, stopMonitor: StopMonitor}
+	p.Notifier = filepath.Join(options.StateDir, "laodi-host.exe")
+	p.notifierRunner = func(ctx context.Context, helper string, args ...string) ([]byte, error) {
+		return RunWindowsNotificationHelper(ctx, helper, options.StateDir, args...)
+	}
 	old, oldErr := readWindowsCurrent(options.StateDir)
 	if oldErr != nil && !errors.Is(oldErr, os.ErrNotExist) {
 		return p, oldErr
@@ -328,10 +337,16 @@ func planWindowsDistribution(options DistributionOptions) (DistributionPlan, err
 		}
 		p.files = old.Manifest.Files
 		p.FileCount = len(p.files)
+		if err := planWindowsDistributionHooks(&p); err != nil {
+			return p, err
+		}
 		return p, nil
 	}
 	m, err := readWindowsPayload(options.SourceDir)
 	if err != nil {
+		return p, err
+	}
+	if err := validateWindowsNotificationUpgrade(p.StateDir, m); err != nil {
 		return p, err
 	}
 	p.files = m.Files
@@ -349,6 +364,9 @@ func planWindowsDistribution(options DistributionOptions) (DistributionPlan, err
 		return p, err
 	}
 	if _, err = LoadState(options.StateDir); err != nil {
+		return p, err
+	}
+	if err := planWindowsDistributionHooks(&p); err != nil {
 		return p, err
 	}
 	return p, nil
@@ -507,9 +525,12 @@ func removeWindowsJournal(dir string) error {
 }
 func installWindowsDistribution(p DistributionPlan) (result DistributionResult, err error) {
 	result.NotificationStatus = "not_configured"
-	result.Warnings = []string{"windows_client_protocol_unverified_hooks_not_installed", "windows_notification_integration_not_verified"}
 	root, err := openStateRoot(p.StateDir, true)
 	if err != nil {
+		return result, err
+	}
+	if err := verifyWindowsInstallationRoot(root); err != nil {
+		root.Close()
 		return result, err
 	}
 	root.Close()
@@ -518,8 +539,20 @@ func installWindowsDistribution(p DistributionPlan) (result DistributionResult, 
 		return result, err
 	}
 	defer unlock()
+	fresh := p
+	fresh.Adapters = nil
+	fresh.WindowsClients = nil
+	if err := planWindowsDistributionHooks(&fresh); err != nil {
+		return result, err
+	}
+	if !reflect.DeepEqual(fresh.WindowsClients, p.WindowsClients) {
+		return result, errors.New("Windows client selection changed; regenerate the installation plan")
+	}
 	m, err := readWindowsPayload(p.SourceDir)
 	if err != nil {
+		return result, err
+	}
+	if err := validateWindowsNotificationUpgrade(p.StateDir, m); err != nil {
 		return result, err
 	}
 	old, oldErr := readWindowsCurrent(p.StateDir)
@@ -606,6 +639,12 @@ func installWindowsDistribution(p DistributionPlan) (result DistributionResult, 
 			return result, fmt.Errorf("runtime staged; background heartbeat NOT verified: %w", err)
 		}
 		result.ServiceInstalled = true
+		if err := prepareWindowsNotifications(p, m, &result); err != nil {
+			return result, err
+		}
+		if err := applyWindowsDistributionHooks(p, &result); err != nil {
+			return result, fmt.Errorf("runtime active; Windows hook setup incomplete: %w", err)
+		}
 		return result, nil
 	}
 	// Removal intentionally retains versions/history. Reinstalling a newer
@@ -628,7 +667,10 @@ func installWindowsDistribution(p DistributionPlan) (result DistributionResult, 
 	if err != nil {
 		return result, err
 	}
-	defer management()
+	defer func() { management() }()
+	if err := preflightInstalledWindowsDistributionHooks(p); err != nil {
+		return result, err
+	}
 	owned, err = inspectServiceOwnership(service)
 	if err != nil {
 		return result, err
@@ -663,6 +705,14 @@ func installWindowsDistribution(p DistributionPlan) (result DistributionResult, 
 	result.RuntimeInstalled = true
 	result.ServiceInstalled = true
 	result.Updated = true
+	management()
+	management = func() {}
+	if err := prepareWindowsNotifications(p, m, &result); err != nil {
+		return result, err
+	}
+	if err := applyWindowsDistributionHooks(p, &result); err != nil {
+		return result, fmt.Errorf("runtime updated; Windows hook setup incomplete: %w", err)
+	}
 	return result, nil
 }
 func uninstallWindowsDistribution(p DistributionPlan) (DistributionResult, error) {
@@ -672,6 +722,12 @@ func uninstallWindowsDistribution(p DistributionPlan) (DistributionResult, error
 		return r, err
 	}
 	defer unlock()
+	p.options.Remove = true
+	p.Adapters = nil
+	p.WindowsClients = nil
+	if err := planWindowsDistributionHooks(&p); err != nil {
+		return r, err
+	}
 	if _, err = os.Lstat(filepath.Join(p.StateDir, windowsJournalName)); err == nil {
 		return r, errors.New("upgrade recovery is pending; removal refused")
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -685,13 +741,20 @@ func uninstallWindowsDistribution(p DistributionPlan) (DistributionResult, error
 	if err != nil {
 		return r, err
 	}
+	if err := removeWindowsDistributionHooks(p, &r); err != nil {
+		return r, err
+	}
 	if err = stopWindowsVersion(p, c); err != nil {
 		return r, err
 	}
 	if err = UninstallService(service); err != nil {
 		return r, err
 	}
-	r.Warnings = []string{"history_and_immutable_versions_retained", "no_verified_windows_hooks_or_notification_registration_installed"}
+	if err = removeWindowsNotifications(p); err != nil {
+		return r, err
+	}
+	r.NotificationStatus = "removed_or_not_installed"
+	r.Warnings = []string{"history_and_immutable_versions_retained"}
 	return r, nil
 }
 

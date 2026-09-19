@@ -50,7 +50,9 @@ func TestWindowsBuildDoesNotInheritMacOSContract(t *testing.T) {
 }
 
 func TestWindowsHookInstallFailsBeforeReadingSettings(t *testing.T) {
-	_, err := PlanHookConfig(HookConfigOptions{Adapter: "claude-code", Home: `C:\not-inspected`, Executable: `C:\not-inspected\laodi.exe`})
+	home := privateStateDir(t)
+	exe, _ := os.Executable()
+	_, err := PlanHookConfig(HookConfigOptions{Adapter: "claude-code", Home: home, Executable: exe, StateDir: filepath.Join(home, "state"), ClientExecutable: filepath.Join(home, "unknown.exe")})
 	if !errors.Is(err, ErrWindowsHookContractUnverified) {
 		t.Fatalf("unexpected contract result: %v", err)
 	}
@@ -79,7 +81,17 @@ func TestWindowsPublicExecutableInspection(t *testing.T) {
 }
 
 func TestWindowsVersionResourceIsIdentityNotProtocolSupport(t *testing.T) {
-	program := filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
+	// Windows servicing may hardlink System32 binaries to WinSxS. A private
+	// copy retains the public PE resource while respecting the client's
+	// single-link identity requirement; the fixture is never executed.
+	data, err := os.ReadFile(filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	program := filepath.Join(t.TempDir(), "public-version-fixture.exe")
+	if err := os.WriteFile(program, data, 0600); err != nil {
+		t.Fatal(err)
+	}
 	identity, ok := inspectClientExecutable("synthetic-public-os-fixture", program)
 	if !ok || len(strings.Split(identity.FileVersion, ".")) != 4 || identity.SnapshotCoverage != "unsupported_build" || DetectBuild(program) != "unknown" {
 		t.Fatalf("public PE version was missing or treated as a supported client contract: %+v", identity)

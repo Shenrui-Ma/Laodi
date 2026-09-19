@@ -31,6 +31,12 @@ func main() {
 	}
 }
 func run(args []string) error {
+	if runPlatformHookShell(args, os.Stdin) {
+		return nil
+	}
+	if handled, err := runPlatformNotifications(args); handled {
+		return err
+	}
 	if len(args) > 0 && args[0] == "update" {
 		return runUpdate(args[1:])
 	}
@@ -46,6 +52,9 @@ func run(args []string) error {
 	}
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		fmt.Println("Laodi-skills — 本地快照线索监测，不阻断 Git 或 Agent。\n\n发行包: install [--dry-run] | update [--dry-run] [--version TAG] | remove [--dry-run]\n命令: check | watch | status | incidents | doctor | setup | uninstall | hooks | version\n选项: --root PATH --state-dir PATH --app PATH --build BUILD --format text|json|agent-summary\nwatch: --interval 2s --duration 30s --notifier /path/to/helper [--hooks-only]\n工具适配: hooks install --adapter zcode|claude-code [--apply]；hooks status查看队列\nsetup/uninstall: 默认只预览，--apply 才注册/移除用户级服务（当前用户，无需管理员）\n\n当前为开发版。首次扫描只建立既有记录基线。查询不请求通知权限，不改变客户端设置。watch前台退出用 Ctrl-C。")
+		if runtime.GOOS == "windows" {
+			fmt.Println("Windows 通知: notifications status|enable|disable|test-template|test-activation|test；test 显式发送一条合成通知，安装仅注册身份。")
+		}
 		return nil
 	}
 	if args[0] == "version" || args[0] == "--version" {
@@ -115,7 +124,7 @@ func run(args []string) error {
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
-		return laodi.Watch(ctx, scanner, laodi.WatchOptions{StateDir: *data, Interval: *interval, Duration: *duration, Notifier: *notifier, Output: os.Stdout, HooksOnly: *hooksOnly})
+		return laodi.Watch(ctx, scanner, laodi.WatchOptions{StateDir: *data, Interval: *interval, Duration: *duration, Notifier: *notifier, NotifierForEvent: platformNotifierProvider(*data, *notifier), Output: os.Stdout, HooksOnly: *hooksOnly})
 	case "status", "incidents":
 		st, e := laodi.LoadState(*data)
 		if e != nil {
