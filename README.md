@@ -14,7 +14,7 @@
 
 <p align="right">
   <br><br><br><br>
-  <img src="assets/closure.png" width="350" alt="可露希尔表情插画">
+  <img src="assets/closure.png" width="400" alt="可露希尔表情插画">
 </p>
 
 <br clear="all">
