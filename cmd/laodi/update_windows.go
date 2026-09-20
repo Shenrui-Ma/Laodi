@@ -14,16 +14,18 @@ import (
 )
 
 type windowsUpdateCommands struct {
-	download func(context.Context, string, string) (string, func(), error)
-	run      func(context.Context, string, ...string) error
+	recommend func(context.Context, string) (string, error)
+	download  func(context.Context, string, string) (string, func(), error)
+	run       func(context.Context, string, ...string) error
 }
 
 func runWindowsUpdate(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	return runWindowsUpdateWith(ctx, args, windowsUpdateCommands{
-		download: laodi.DownloadWindowsRelease,
-		run:      runWindowsUpdateInstaller,
+		recommend: laodi.RecommendedWindowsRelease,
+		download:  laodi.DownloadWindowsRelease,
+		run:       runWindowsUpdateInstaller,
 	})
 }
 
@@ -37,7 +39,7 @@ func runWindowsUpdateInstaller(ctx context.Context, executable string, args ...s
 
 func runWindowsUpdateWith(ctx context.Context, args []string, commands windowsUpdateCommands) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
-	tag := fs.String("version", "", "official Windows release tag (required until the first verified Windows release)")
+	tag := fs.String("version", "", "official release tag; defaults to the Windows recommended channel")
 	state := fs.String("state-dir", "", "existing Windows installation")
 	dry := fs.Bool("dry-run", false, "download and inspect without switching versions")
 	noNotify := fs.Bool("no-notifications", false, "do not register notification integration")
@@ -48,8 +50,20 @@ func runWindowsUpdateWith(ctx context.Context, args []string, commands windowsUp
 		}
 		return err
 	}
-	if fs.NArg() != 0 || !validUpdateTag(*tag) || (*format != "text" && *format != "json") {
-		return errors.New("specify --version with a verified Windows release tag")
+	if fs.NArg() != 0 || (*format != "text" && *format != "json") {
+		return errors.New("unexpected arguments or output format")
+	}
+	explicitVersion := false
+	fs.Visit(func(f *flag.Flag) { explicitVersion = explicitVersion || f.Name == "version" })
+	if explicitVersion && !validUpdateTag(*tag) {
+		return errors.New("specify --version with a valid release tag")
+	}
+	if !explicitVersion {
+		recommended, err := commands.recommend(ctx, version)
+		if err != nil {
+			return fmt.Errorf("Windows recommended channel unavailable (installation unchanged; retry or use --version): %w", err)
+		}
+		*tag = recommended
 	}
 	if *state == "" {
 		exe, err := os.Executable()
