@@ -4,7 +4,7 @@
 <h1 align="center">Laodi · 老底</h1>
 
 <p>
-  <img src="assets/chat-demo.png" width="390" align="left" alt="聊天记录截图">
+  <img src="assets/chat-demo.png" width="350" align="left" alt="聊天记录截图">
 </p>
 
 <h3>担心自己的 Git 历史被第三方工具悄悄上传？</h3>
@@ -14,7 +14,7 @@
 
 <p align="right">
   <br><br><br><br>
-  <img src="assets/closure.png" width="400" alt="可露希尔表情插画">
+  <img src="assets/closure.png" width="350" alt="可露希尔表情插画">
 </p>
 
 <br clear="all">
