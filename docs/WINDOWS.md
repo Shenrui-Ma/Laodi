@@ -2,11 +2,21 @@
 
 ## 发布状态
 
-Windows 目前是候选版本，尚未发布 Windows Release。当前 macOS Release 的 ZIP 不能用于 Windows。合并源代码不代表已完成 Windows 发布验收。
+当前提供 Windows 11 x64 BETA：`v0.4.1-windows.beta.1`。它使用独立 Windows 安装包，macOS ZIP 不能用于 Windows。BETA 不代表所有交互与长时间运行验收均已完成。
 
 已有实现包括本地工具事件监测、当前用户后台任务、安装更新、脱敏记录与通知管理。Windows 默认只接收工具事件；Git 历史打包限制仍仅支持 macOS，Windows 快照格式未通过适配时会报告覆盖不足。
 
 开发验证以 Windows 11 x64、本地 NTFS 为目标。其他 Windows 版本、ARM64、WSL、不同文件系统及系统策略需分别验证。安装在普通用户 PowerShell 中进行，不需要管理员权限，不修改系统执行策略或安全防护。
+
+## 命令行安装
+
+在普通 PowerShell 中执行：
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.1/install.ps1').Content)) -Version 'v0.4.1-windows.beta.1'
+```
+
+脚本从对应 Release 下载 Windows 包并校验 ZIP 与包内文件。不修改 PATH，默认安装到当前用户目录。更新保留配置与记录。
 
 ## 本地候选包安装与更新
 
@@ -45,15 +55,15 @@ $Laodi = Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe'
 
 ## 在线更新
 
-Windows 的 `update` 已实现，但当前必须显式指定**已发布且包含 Windows 资产**的 Release 标签。现在尚无这样的 Release，因此不要使用 macOS 标签尝试下载，也不要把裸 `laodi update` 当作可用的自动更新入口。
+Windows 更新必须显式指定**包含 Windows 资产**的 Release 标签。不要使用 macOS 标签，也不要省略 `--version`。
 
-正式发布 Windows 包后，命令形式为：
+更新到当前 Windows BETA：
 
 ```powershell
-& $Laodi update --version '<已发布的 Windows Release 标签>'
+& $Laodi update --version 'v0.4.1-windows.beta.1'
 ```
 
-以上尖括号内容需要换成实际标签。候选阶段使用前述本地包安装方式更新。
+后续更新时替换为目标 Windows Release 标签；本地候选包仍可用前述安装方式更新。
 
 ## 卸载
 
@@ -65,6 +75,6 @@ Windows 的 `update` 已实现，但当前必须显式指定**已发布且包含
 
 ## 发布验收
 
-发布前仍需完成并保留：全新用户安装、真实客户端回调、可见通知、安装/更新/卸载与中断恢复、登录启动和会话切换，以及至少 24 小时实际运行观察。原生 CI、离线通知协议测试和候选包校验不能替代这些交互验收。
+正式稳定版前仍需补齐并保留：全新用户安装、真实客户端回调、可见通知、安装/更新/卸载与中断恢复、登录启动和会话切换，以及至少 24 小时实际运行观察。BETA 的原生 CI、离线通知协议与包校验不替代这些交互验收。
 
 详细实验资料留在私有验证记录，公开文档不包含真实账号路径、日志、凭据或逐项实验数据。

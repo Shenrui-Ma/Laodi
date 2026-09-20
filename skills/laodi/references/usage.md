@@ -49,7 +49,7 @@ laodi protect status --format agent-summary
 
 ## 安装与通知
 
-用户说“装老底”或“开启提醒”才进入接入流程：找到可信仓库/已有发行包的说明，确认版本，采用该版本真实提供的命令。官方仓库是 `https://github.com/Shenrui-Ma/Laodi`，具体安装命令以其 README 为准；macOS 已安装版本可用 `laodi update` 更新；Windows 在线更新需显式 `--version` 且对应 Release 已发布，当前候选阶段使用本地包重新安装以更新，不编造第三方镜像或版本号。
+用户说“装老底”或“开启提醒”才进入接入流程：找到可信仓库/已有发行包的说明，确认版本，采用该版本真实提供的命令。官方仓库是 `https://github.com/Shenrui-Ma/Laodi`，具体安装命令以其 README 为准；macOS 已安装版本可用 `laodi update` 更新；Windows 在线更新需显式 `--version` 且对应 Release 已发布，本地候选包也可重新运行安装命令更新，不编造第三方镜像或版本号。
 
 安装后解释初次检查结果，包括已有清单和接受记录。后台不逐条通知既有基线，不代表没有历史线索。解析器升级后新增分类的首次观察也不能说成刚刚上传；按摘要中的未知项说明发生时间不明。
 

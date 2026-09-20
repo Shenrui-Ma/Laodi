@@ -55,12 +55,12 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | 
 "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" status
 ```
 
-**Windows（候选版）**：
+**Windows 11 x64（BETA）**：
 
-暂未发布 Windows Release。已校验的候选包解压后，在包目录的 PowerShell 中安装；更新本地候选版本也使用同一命令：
+在 PowerShell 中安装：
 
 ```powershell
-.\laodi.exe install
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.1/install.ps1').Content)) -Version 'v0.4.1-windows.beta.1'
 ```
 
 安装后查询状态与提醒：
@@ -70,9 +70,10 @@ $Laodi = Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe'
 & $Laodi status
 & $Laodi incidents --format agent-summary
 & $Laodi notifications status
+& $Laodi update --version 'v0.4.1-windows.beta.1'
 ```
 
-Windows 在线更新需 `update --version <已发布的 Windows 标签>`；当前仍使用本地候选包更新。Windows 暂不提供 Git 历史打包限制。[Windows 安装、更新与发布状态](docs/WINDOWS.md)
+Windows 更新需明确指定 Windows Release 标签，现有配置与记录保留。当前提供工具监测和通知，暂不提供 Git 历史打包限制。[Windows 使用说明](docs/WINDOWS.md)
 
 Skill 随包提供，方便 Agent 查询；不影响后台独立运行。
 
