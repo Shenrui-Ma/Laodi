@@ -113,6 +113,7 @@ func run(args []string) error {
 	scanner := &laodi.Scanner{Root: *root, Build: *build}
 	showSummary := func(s laodi.AgentSummary) error {
 		laodi.AddArchiveProtectionSummary(&s, home, *data, *app)
+		laodi.AddMonitoringSummary(&s, *data)
 		return printSummary(s, *format)
 	}
 	if discoverBuild {
@@ -211,6 +212,21 @@ func printSummary(s laodi.AgentSummary, format string) error {
 	}
 	fmt.Println("老底 · 本地隐私线索")
 	fmt.Printf("范围状态: %s\n解析器: %s\n", s.Coverage, s.Parser)
+	if s.Monitoring != nil {
+		m := s.Monitoring
+		fmt.Printf("后台身份与心跳: %s\n通知: 配置=%s，系统许可=%s，可见性=%s\n", m.Background, m.Notifications.Preference, m.Notifications.Authorization, m.Notifications.Visibility)
+		for _, client := range m.Clients {
+			fmt.Printf("%s 接入: 合同=%s，Hook=%s，回调记录=%s\n", client.Adapter, client.Contract, client.Hooks, client.Callback.Status)
+			if client.Callback.LastSample != nil {
+				fmt.Printf("  最近回调采样: %s（历史观测，非当前会话交付证明）\n", client.Callback.LastSample.Format(time.RFC3339))
+			}
+			for _, sample := range client.Callback.Samples {
+				if sample.Category != "callback_received" {
+					fmt.Printf("  覆盖采样: %s @ %s\n", sample.Category, sample.At.Format(time.RFC3339))
+				}
+			}
+		}
+	}
 	if s.Protection != nil {
 		if err := printArchiveProtection(*s.Protection, "text"); err != nil {
 			return err

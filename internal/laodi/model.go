@@ -65,6 +65,7 @@ type State struct {
 
 // AgentSummary is a separate whitelist type, never a redaction of raw Report.
 type AgentSummary struct {
+	Monitoring    *MonitoringSummary `json:"monitoring,omitempty"`
 	Protection    *ProtectionSummary `json:"protection,omitempty"`
 	SourceCounts  map[string]int     `json:"source_counts,omitempty"`
 	SchemaVersion int                `json:"schema_version"`

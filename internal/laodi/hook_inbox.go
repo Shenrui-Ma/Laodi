@@ -96,6 +96,9 @@ type hookInboxSignal struct {
 // SubmitHookInspection is for short-lived asynchronous hook processes. It has
 // an independent lock, bounded retry and bounded queue; it never writes State.
 func SubmitHookInspection(stateDir string, in HookInspection) error {
+	// Record only closed, sampled coverage categories, after the risk queue has
+	// finished. Coverage telemetry has its own lock and can never reject a hook.
+	defer recordHookObservation(stateDir, in)
 	if len(in.Signals) == 0 {
 		return nil
 	}
