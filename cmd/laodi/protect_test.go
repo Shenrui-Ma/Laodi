@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -33,6 +34,18 @@ func TestProtectStatusDoesNotCreateStateOrExposePaths(t *testing.T) {
 	defer func() { os.Stdout = previous }()
 	err = run([]string{"protect", "status", "--state-dir", state, "--format", "agent-summary"})
 	os.Stdout = previous
+	if runtime.GOOS != "darwin" {
+		if err == nil || !strings.Contains(err.Error(), "supports macOS only") || strings.Contains(err.Error(), "PRIVATE") {
+			t.Fatalf("unsupported platform protection not reported safely: %v", err)
+		}
+		if info, statErr := f.Stat(); statErr != nil || info.Size() != 0 {
+			t.Fatal("unsupported protection emitted a success summary")
+		}
+		if _, statErr := os.Stat(state); !os.IsNotExist(statErr) {
+			t.Fatal("unsupported protection query wrote state")
+		}
+		return
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -55,9 +55,62 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | 
 "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" status
 ```
 
+**Windows 11 x64（BETA）**：
+
+在 PowerShell 中安装：
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.1/install.ps1').Content)) -Version 'v0.4.1-windows.beta.1'
+```
+
+安装后查询状态与提醒：
+
+```powershell
+$Laodi = Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe'
+& $Laodi status
+& $Laodi incidents --format agent-summary
+& $Laodi notifications status
+& $Laodi update --version 'v0.4.1-windows.beta.1'
+```
+
+Windows 更新需明确指定 Windows Release 标签，现有配置与记录保留。当前提供工具监测和通知，暂不提供 Git 历史打包限制。[Windows 使用说明](docs/WINDOWS.md)
+
 Skill 随包提供，方便 Agent 查询；不影响后台独立运行。
 
+## 架构
+
+```text
+已支持的快照文件 ───────────────────┐
+                                  ↓
+已接入编程工具的异步 Hook → 私有事件队列 → Go 守护进程
+                                              ├─ 脱敏记录 → CLI / Skill 查询
+                                              └─ 系统通知（macOS / Windows）
+```
+
+## 提醒后自查
+
+| 提醒 | 已做 | 处理 |
+| --- | --- | --- |
+| 敏感访问请求 | 仅记录 | 授权内操作可继续 |
+| 输出疑似凭据 | 脱敏记录、通知 | 核对用途；真实凭据可能暴露时撤销或轮换 |
+| 快照 / 上传记录 | 记录、通知 | 查事件与保护状态，按需限制 Git 历史打包 |
+| 监测或保护异常 | 诊断、提醒 | 查 `status`、`doctor`、`protect status` |
+
+老底自动监测并执行已启用的归档限制。接入 Skill 后，可直接询问 Agent：“查看老底提醒，告诉我怎么处理。”也可用命令查询：
+
+```sh
+"$HOME/Library/Application Support/Laodi-skills/runtime/laodi" incidents --format agent-summary
+```
+
+| 授权分类 | 例子 |
+| --- | --- |
+| 授权内 | 明确指定文件进行读取、修改，或分析指定提交；把用户给的 key 用于指定服务认证 |
+| 授权外 | 只授权改代码却额外上传完整历史；把认证用 key 回显或发送给另一服务，且没有相应授权 |
+| 待核实 | 只有路径、系统权限或快照线索，缺少任务、设置与目的地证据 |
+
 ## Git 历史打包（BETA）
+
+**macOS**：
 
 限制客户端在后台打包项目、Git 历史或配置，供后续上传。
 
@@ -113,37 +166,6 @@ Skill 随包提供，方便 Agent 查询；不影响后台独立运行。
 资源占用：100 份不变清单、1,000 条目，三次约 22 秒运行，单监测进程峰值 RSS **12.20–12.42 MiB**，CPU **0.38–0.48%**。
 
 阻断在本机接收端验证，完整客户端对官方服务的归档阻断仍待验收。
-
-## 提醒后自查
-
-| 提醒 | 已做 | 处理 |
-| --- | --- | --- |
-| 敏感访问请求 | 仅记录 | 授权内操作可继续 |
-| 输出疑似凭据 | 脱敏记录、通知 | 核对用途；真实凭据可能暴露时撤销或轮换 |
-| 快照 / 上传记录 | 记录、通知 | 查事件与保护状态，按需限制 Git 历史打包 |
-| 监测或保护异常 | 诊断、提醒 | 查 `status`、`doctor`、`protect status` |
-
-老底自动监测并执行已启用的归档限制。接入 Skill 后，可直接询问 Agent：“查看老底提醒，告诉我怎么处理。”也可用命令查询：
-
-```sh
-"$HOME/Library/Application Support/Laodi-skills/runtime/laodi" incidents --format agent-summary
-```
-
-| 授权分类 | 例子 |
-| --- | --- |
-| 授权内 | 明确指定文件进行读取、修改，或分析指定提交；把用户给的 key 用于指定服务认证 |
-| 授权外 | 只授权改代码却额外上传完整历史；把认证用 key 回显或发送给另一服务，且没有相应授权 |
-| 待核实 | 只有路径、系统权限或快照线索，缺少任务、设置与目的地证据 |
-
-## 架构
-
-```text
-已支持的快照文件 ───────────────────┐
-                                  ↓
-已接入编程工具的异步 Hook → 私有事件队列 → Go 守护进程
-                                              ├─ 脱敏记录 → CLI / Skill 查询
-                                              └─ macOS 通知辅助程序
-```
 
 ## 卸载
 

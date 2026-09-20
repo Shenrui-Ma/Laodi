@@ -4,11 +4,13 @@
 
 Laodi 读取当前用户有权访问、且解析器明确支持的客户端数据目录。当前版本是否支持已安装的客户端、后台监测是否存活、是否完成初始扫描，都以 CLI 实际返回为准。安装了 Skill 不等于安装或启动了 Guardian。
 
+Windows 当前为待完整验收的开发实现：安装器可为已核对的客户端配置 Hook，并注册后台与通知身份，但安装成功不代表用户已看到通知。未知 Windows 客户端仍返回不支持；不要用 `--build` 将真实客户端伪装成已核查构建，也不要把合成测试结果当成真实工具回调或用户可见通知。客户端工具回调与后台快照是两个独立通道，一个正常不能证明另一个已覆盖。
+
 `--format agent-summary` 的目标是输出受约束的脱敏 JSON：不包含项目名、完整路径、源码、Git 历史、凭据、客户端任意自由文本。不要为了得到更详细的回复绕过这个接口。若所安装版本不支持该格式，说明版本不兼容并依据可信 README 引导升级，不降级为读取原始记录。
 
 ## 查询选择
 
-发行包不修改 PATH。先查 `command -v laodi`；不可用时检查并使用 `"$HOME/Library/Application Support/Laodi-skills/runtime/laodi"`。下面的短命令均指已确认的可执行文件。
+发行包不修改 PATH。macOS 先查 `command -v laodi`，不可用时使用 `"$HOME/Library/Application Support/Laodi-skills/runtime/laodi"`；Windows 先用 `Get-Command laodi.exe`，不可用时使用 `$env:LOCALAPPDATA\Laodi-skills\laodi.exe`。下面的短命令均指已确认的可执行文件。
 
 ```sh
 laodi status --format agent-summary
@@ -22,7 +24,7 @@ laodi protect status --format agent-summary
 - `check`：一次性、只读检查已支持来源；不会启动后台服务。扫描不到支持目录和扫描完成没有线索是不同结果。
 - `incidents`：读取已经记录的事件摘要；没有后台服务时，历史为空不代表当前没有问题。
 - `doctor`：只读检查版本、支持范围及目录可读性；不修复、不更改权限，也不查询系统通知许可。后台存活看 `status`；通知许可需另查已安装 helper 的 `--status`。
-- `protect status`：只读核对可选归档限制。`unsupported_client`、`degraded`、`unknown`、`recovery_needed` 都不能说成保护有效；最后一种表示应在客户端退出后执行 `protect disable` 恢复。`enabled` 也不是实际阻断或上传次数。
+- `protect status`：仅 macOS，只读核对可选归档限制。`unsupported_client`、`degraded`、`unknown`、`recovery_needed` 都不能说成保护有效；最后一种表示应在客户端退出后执行 `protect disable` 恢复。`enabled` 也不是实际阻断或上传次数。
 
 以已安装版本的 `--help` 为准，不补造输出，不把规划当成功。
 
@@ -47,7 +49,7 @@ laodi protect status --format agent-summary
 
 ## 安装与通知
 
-用户说“装老底”或“开启提醒”才进入接入流程：找到可信仓库/已有发行包的说明，确认版本，采用该版本真实提供的命令。官方仓库是 `https://github.com/Shenrui-Ma/Laodi`，具体安装命令以其 README 为准；已安装版本可用 `laodi update` 更新，不编造第三方镜像或版本号。
+用户说“装老底”或“开启提醒”才进入接入流程：找到可信仓库/已有发行包的说明，确认版本，采用该版本真实提供的命令。官方仓库是 `https://github.com/Shenrui-Ma/Laodi`，具体安装命令以其 README 为准；macOS 已安装版本可用 `laodi update` 更新；Windows 在线更新需显式 `--version` 且对应 Release 已发布，本地候选包也可重新运行安装命令更新，不编造第三方镜像或版本号。
 
 安装后解释初次检查结果，包括已有清单和接受记录。后台不逐条通知既有基线，不代表没有历史线索。解析器升级后新增分类的首次观察也不能说成刚刚上传；按摘要中的未知项说明发生时间不明。
 
@@ -67,7 +69,7 @@ macOS 的通知 helper 是无窗口本地程序：请求通知权限为显式操
 
 老底已自动完成本地检测、脱敏记录、提醒与已启用的固定归档目录限制。通知没有“一键阻止”、自动修复或跳转 Agent 的动作；Skill 不会收到系统通知后自行唤醒。
 
-用户来询问时，Agent 可以先查询脱敏摘要、解释证据阶段，再按明确要求启用或撤销受支持的限制。不要承诺从摘要定位某个具体密钥或文件，摘要有意不包含这些值。若需要更细的本地取证，应单独确定范围，不读取完整日志或秘密原文给模型。
+Windows 当前只提供工具事件监测，不承诺未知快照格式或归档阻断。用户来询问时，Agent 可以先查询脱敏摘要、解释证据阶段，再按明确要求启用或撤销受支持的限制。不要承诺从摘要定位某个具体密钥或文件，摘要有意不包含这些值。若需要更细的本地取证，应单独确定范围，不读取完整日志或秘密原文给模型。
 
 | 提醒类型 | 推荐下一步 |
 | --- | --- |
@@ -76,6 +78,9 @@ macOS 的通知 helper 是无窗口本地程序：请求通知权限为显式操
 | 客户端上传接受记录 | 保留脱敏事件，区分记录与实际载荷；需要远端处置时由用户向相应服务申请，老底不能删除云端副本 |
 | 工具或快照覆盖缺口 | 分别查运行状态、适配器和队列；不自动扩大权限，不把未知当无风险 |
 | 归档限制失效 | 查 `protect status`，不能继续承诺有效；`recovery_needed` 需退出客户端后撤销，未知版本不强行启用 |
+Windows 使用 `laodi notifications status` 只读查询通知注册与系统 API 状态；不应期待 macOS 式授权弹窗。`enable`、`disable` 显式管理自有接入；`test` 会发送合成通知，只有用户要求或批准测试时才执行。`accepted_by_os` 仅表示 API 接受，勿扰、策略与实际可见性仍须分开解释。`unknown` 与错误码表示系统状态未确认，不能解释为已允许。
+
+部分打包桌面宿主会虚拟化文件或注册表。安装器若报告重定向，应在普通 Windows 用户终端运行同一可信安装入口，不关闭隔离或系统防护，也不把应用私有目录中的安装记录误认为普通桌面后台已经接入。
 
 ## 回复长度
 

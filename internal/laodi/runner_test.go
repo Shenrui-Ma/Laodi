@@ -64,13 +64,8 @@ func TestWatchKeepsBaselineQuietAndPersistsChanges(t *testing.T) {
 
 func TestSendNoticeUsesFixedArgumentsAndUnderstandsDelivery(t *testing.T) {
 	dir := t.TempDir()
-	helper := filepath.Join(dir, "notice.sh")
 	out := filepath.Join(dir, "argv.json")
-	// Synthetic helper only: no actual OS notification or permission request.
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + out + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
-	if e := os.WriteFile(helper, []byte(script), 0700); e != nil {
-		t.Fatal(e)
-	}
+	helper := syntheticNotifier(t, out, "args")
 	status := sendNotice(context.Background(), helper, Event{ID: "abc123", Kind: "sensitive_manifest_match"})
 	if status != "accepted_by_os" {
 		t.Fatal(status)
@@ -86,11 +81,8 @@ func TestSendNoticeUsesFixedArgumentsAndUnderstandsDelivery(t *testing.T) {
 
 func TestExtraConfigurationNoticeUsesOnlyFixedMetadata(t *testing.T) {
 	dir := t.TempDir()
-	helper := filepath.Join(dir, "notice.sh")
 	out := filepath.Join(dir, "args")
-	if e := os.WriteFile(helper, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > '"+out+"'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"), 0700); e != nil {
-		t.Fatal(e)
-	}
+	helper := syntheticNotifier(t, out, "args")
 	for kind, want := range map[string]string{
 		"global_config_manifest_match": "snapshot-config", "global_config_upload_attempt_recorded": "config-upload-attempt", "global_config_upload_acceptance_recorded": "config-upload-accepted",
 		"workspace_snapshot_manifest": "snapshot-workspace", "workspace_snapshot_upload_attempt_recorded": "workspace-upload-attempt", "workspace_snapshot_upload_acceptance_recorded": "workspace-upload-accepted",
@@ -155,11 +147,8 @@ func TestWatchIncompleteBaselineDoesNotHideNewValidEvidence(t *testing.T) {
 func TestQueuedNotificationIsRecoveredOnce(t *testing.T) {
 	root := t.TempDir()
 	data := filepath.Join(t.TempDir(), "state")
-	helper := filepath.Join(t.TempDir(), "notice.sh")
 	calls := filepath.Join(t.TempDir(), "calls")
-	if e := os.WriteFile(helper, []byte("#!/bin/sh\nprintf 'called\\n' >> '"+calls+"'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"), 0700); e != nil {
-		t.Fatal(e)
-	}
+	helper := syntheticNotifier(t, calls, "calls")
 	st := emptyState()
 	_, e := ApplyReport(&st, Report{SchemaVersion: 1, Coverage: "observing"}, RootID(root), time.Now())
 	if e != nil {
@@ -278,12 +267,8 @@ func TestWatchSnapshotCapacityKeepsHooksAndKnownSnapshotsRunning(t *testing.T) {
 	if err := SubmitHookInspection(data, runtimeHook(t, "claude-code", "PostToolUse", "synthetic-capacity-hook")); err != nil {
 		t.Fatal(err)
 	}
-	helper := filepath.Join(t.TempDir(), "notice.sh")
 	calls := filepath.Join(t.TempDir(), "calls")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '" + calls + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
-	if err := os.WriteFile(helper, []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
+	helper := syntheticNotifier(t, calls, "append-args")
 	for _, duration := range []time.Duration{1100 * time.Millisecond, 100 * time.Millisecond} {
 		if err := Watch(context.Background(), &Scanner{Root: root, Build: KnownBuild}, WatchOptions{StateDir: data, Interval: time.Second, Duration: duration, Notifier: helper}); err != nil {
 			t.Fatalf("full snapshot store stopped the monitor: %v", err)
@@ -327,11 +312,8 @@ func TestWatchSnapshotCapacityKeepsHooksAndKnownSnapshotsRunning(t *testing.T) {
 func TestWatchProtectionFailureNotifiesOnFirstRunAndRateLimitsRecurrence(t *testing.T) {
 	stateDir := filepath.Join(t.TempDir(), "state")
 	home, app := t.TempDir(), "/synthetic/not-a-real-client.app"
-	helper, calls := filepath.Join(t.TempDir(), "notice.sh"), filepath.Join(t.TempDir(), "calls")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '" + calls + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
-	if err := os.WriteFile(helper, []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
+	calls := filepath.Join(t.TempDir(), "calls")
+	helper := syntheticNotifier(t, calls, "append-args")
 	for index, status := range []string{"degraded", "enabled", "degraded"} {
 		checks := 0
 		opts := WatchOptions{StateDir: stateDir, Interval: time.Second,
@@ -386,11 +368,8 @@ func TestWatchWithoutProtectionHomeNeverInvokesChecker(t *testing.T) {
 
 func TestProtectionNoticeUsesWhitelistedArgumentsOnly(t *testing.T) {
 	dir := t.TempDir()
-	helper, calls := filepath.Join(dir, "notice.sh"), filepath.Join(dir, "calls")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + calls + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
-	if err := os.WriteFile(helper, []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
+	calls := filepath.Join(dir, "calls")
+	helper := syntheticNotifier(t, calls, "args")
 	event := Event{ID: "opaque123", Kind: protectionHealthKind, Evidence: "PRIVATE_PATH", Unknowns: []string{"PRIVATE_ERROR"}}
 	if status := sendNotice(context.Background(), helper, event); status != "accepted_by_os" {
 		t.Fatal(status)
@@ -431,10 +410,7 @@ func TestProtectionAndSnapshotCoverageNoticesDoNotSupersedeEachOther(t *testing.
 	if err := SaveState(stateDir, state); err != nil {
 		t.Fatal(err)
 	}
-	helper := filepath.Join(t.TempDir(), "notice.sh")
-	if err := os.WriteFile(helper, []byte("#!/bin/sh\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
+	helper := syntheticNotifier(t, filepath.Join(t.TempDir(), "calls"), "calls")
 	watchProtectionFixture(t, &Scanner{}, WatchOptions{StateDir: stateDir, Interval: time.Second, HooksOnly: true, Notifier: helper}, func(state State) bool {
 		return len(state.Events) == 2 && state.Events[0].Notification == "accepted_by_os" && state.Events[1].Notification == "accepted_by_os"
 	})

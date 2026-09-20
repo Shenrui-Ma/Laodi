@@ -5,12 +5,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Shenrui-Ma/Laodi/internal/laodi"
 )
 
 func TestReleaseInstallCLIHasReadOnlyPreview(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS release payload; native Windows payload has separate tests")
+	}
 	home := filepath.Join(t.TempDir(), "home")
 	if err := os.Mkdir(home, 0700); err != nil {
 		t.Fatal(err)

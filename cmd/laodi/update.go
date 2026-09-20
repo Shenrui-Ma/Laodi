@@ -30,6 +30,9 @@ type updateCommands struct {
 }
 
 func runUpdate(args []string) error {
+	if runtime.GOOS == "windows" {
+		return runWindowsUpdate(args)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	return runUpdateWith(ctx, args, updateCommands{

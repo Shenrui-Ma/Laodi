@@ -70,19 +70,11 @@ func TestHookInboxReplayAckAndDedupWithoutRawIdentifiers(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
 		if entry.IsDir() {
-			if info.Mode().Perm() != 0700 {
-				t.Errorf("directory is not private")
-			}
+			assertPrivateTestPath(t, path, 0700)
 			return nil
 		}
-		if info.Mode().Perm() != 0600 {
-			t.Errorf("file is not private")
-		}
+		assertPrivateTestPath(t, path, 0600)
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
@@ -265,7 +257,7 @@ func TestHookInboxRejectsSymlinksAndUnsafeReceipts(t *testing.T) {
 					os.Mkdir(dir, 0700)
 					link = filepath.Join(dir, hookInboxName)
 				}
-				if err := os.Symlink(targetDir, link); err != nil {
+				if err := createUnsafeTestLink(targetDir, link); err != nil {
 					t.Fatal(err)
 				}
 				if err := SubmitHookInspection(dir, inboxInspection("a")); err == nil {
@@ -284,7 +276,7 @@ func TestHookInboxRejectsSymlinksAndUnsafeReceipts(t *testing.T) {
 			name := map[string]string{"key": hookInboxKeyName, "lock": ".lock", "record": batch.Receipts[0], "gap": hookInboxGapName}[location]
 			path := filepath.Join(dir, hookInboxName, name)
 			os.Remove(path)
-			if err := os.Symlink(target, path); err != nil {
+			if err := createUnsafeTestLink(target, path); err != nil {
 				t.Fatal(err)
 			}
 			if location == "gap" {

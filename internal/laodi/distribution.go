@@ -30,26 +30,30 @@ type DistributionOptions struct {
 	Remove               bool // plan explicit removal without requiring installed tools to remain present
 	LookPath             func(string) (string, error)
 	AppCandidates        []string // nil selects standard application locations
+	ClientExecutable     string   // Windows: explicit reviewed client executable
 }
 
 type DistributionPlan struct {
-	SourceDir            string   `json:"source_dir"`
-	StateDir             string   `json:"state_dir"`
-	RuntimeDir           string   `json:"runtime_dir"`
-	Executable           string   `json:"executable"`
-	Notifier             string   `json:"notifier"`
-	Adapters             []string `json:"adapters"`
-	App                  string   `json:"app,omitempty"`
-	HooksOnly            bool     `json:"hooks_only"`
-	FileCount            int      `json:"file_count"`
-	RequestNotifications bool     `json:"request_notifications"`
-	Upgrade              bool     `json:"upgrade"`
-	PendingRecovery      bool     `json:"pending_recovery"`
+	SourceDir            string                `json:"source_dir"`
+	StateDir             string                `json:"state_dir"`
+	RuntimeDir           string                `json:"runtime_dir"`
+	Executable           string                `json:"executable"`
+	Notifier             string                `json:"notifier"`
+	Adapters             []string              `json:"adapters"`
+	App                  string                `json:"app,omitempty"`
+	HooksOnly            bool                  `json:"hooks_only"`
+	FileCount            int                   `json:"file_count"`
+	RequestNotifications bool                  `json:"request_notifications"`
+	Upgrade              bool                  `json:"upgrade"`
+	PendingRecovery      bool                  `json:"pending_recovery"`
+	WindowsClients       []WindowsHookContract `json:"windows_clients,omitempty"`
 	options              DistributionOptions
 	files                map[string]string
 	serviceRunner        func(context.Context, ...string) error
 	notifierRunner       func(context.Context, string, ...string) ([]byte, error)
 	healthCheck          func(string, time.Time) error
+	windowsService       func(DistributionPlan) (ServicePlan, error)
+	stopMonitor          func(context.Context, string, string) error
 }
 
 type DistributionResult struct {
@@ -69,6 +73,9 @@ type distributionReceipt struct {
 // PlanDistribution validates only local paths, file hashes, and installation
 // ownership. It never reads credentials or invokes launchctl/notification APIs.
 func PlanDistribution(options DistributionOptions) (DistributionPlan, error) {
+	if runtime.GOOS == "windows" {
+		return planWindowsDistribution(options)
+	}
 	if runtime.GOOS != "darwin" {
 		return DistributionPlan{}, errors.New("release installation currently supports macOS only")
 	}
@@ -309,6 +316,9 @@ func distributionPrivateMode(info os.FileInfo, permissions os.FileMode) bool {
 }
 
 func distributionRead(root *os.Root, name string) ([]byte, error) {
+	if runtime.GOOS == "windows" {
+		return readWindowsSource(root, name)
+	}
 	info, err := root.Lstat(name)
 	if err != nil || !info.Mode().IsRegular() {
 		return nil, errors.New("payload file must be regular")
@@ -439,6 +449,9 @@ func distributionService(plan DistributionPlan) (ServicePlan, error) {
 // InstallDistribution is intentionally staged, not a cross-file transaction.
 // Results remain useful on error; completed stages and existing data are kept.
 func InstallDistribution(plan DistributionPlan) (DistributionResult, error) {
+	if runtime.GOOS == "windows" {
+		return installWindowsDistribution(plan)
+	}
 	result := DistributionResult{NotificationStatus: "not_requested", HookAdapters: []string{}}
 	if plan.options.Remove {
 		return result, errors.New("removal plan cannot be used for installation")
@@ -652,6 +665,9 @@ func runDistributionNotifier(ctx context.Context, executable string, args ...str
 // UninstallDistribution removes only owned service/hook registrations. Runtime
 // payload and incident records stay in place for inspection or reinstallation.
 func UninstallDistribution(plan DistributionPlan) (DistributionResult, error) {
+	if runtime.GOOS == "windows" {
+		return uninstallWindowsDistribution(plan)
+	}
 	result := DistributionResult{HookAdapters: []string{}, NotificationStatus: "unchanged"}
 	current, err := PlanDistribution(plan.options)
 	if err != nil {

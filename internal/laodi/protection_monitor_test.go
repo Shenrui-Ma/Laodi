@@ -124,10 +124,7 @@ func TestProtectionMonitorRecoveryAllowsLaterFailureWithoutSuccessEvent(t *testi
 
 func protectionMonitorTestBundle(t *testing.T) (string, string, string) {
 	t.Helper()
-	dir, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir := protectionClientTestDir(t)
 	app := filepath.Join(dir, "Synthetic.app")
 	if err := os.MkdirAll(filepath.Join(app, "Contents", "Resources"), 0700); err != nil {
 		t.Fatal(err)

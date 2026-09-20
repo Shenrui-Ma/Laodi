@@ -12,20 +12,11 @@ import (
 	"time"
 )
 
-func DetectBuild(app string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	b, err := exec.CommandContext(ctx, "/usr/bin/plutil", "-extract", "CFBundleVersion", "raw", app+"/Contents/Info.plist").Output()
-	if err != nil {
-		return "unknown"
-	}
-	return strings.TrimSpace(string(b))
-}
-
 type WatchOptions struct {
 	StateDir           string
 	Interval, Duration time.Duration
 	Notifier           string
+	NotifierForEvent   func() string
 	Output             io.Writer
 	HooksOnly          bool
 	ProtectionHome     string
@@ -45,6 +36,11 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 		return err
 	}
 	defer release()
+	ctx, stopWatch, err := WatchContext(ctx, opts.StateDir)
+	if err != nil {
+		return err
+	}
+	defer stopWatch()
 	state, err := LoadState(opts.StateDir)
 	if err != nil {
 		return err
@@ -64,6 +60,12 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 		defer cancel()
 	}
 	ctx, cancel := context.WithCancel(ctx)
+	notifier := func() string {
+		if opts.NotifierForEvent != nil {
+			return opts.NotifierForEvent()
+		}
+		return opts.Notifier
+	}
 	jobs := make(chan Event, 16)
 	messages := make(chan noticeResult, 32)
 	var wg sync.WaitGroup
@@ -89,7 +91,10 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 				case <-ctx.Done():
 					return
 				}
-				status := sendNotice(ctx, opts.Notifier, ev)
+				status := "not_configured"
+				if helper := notifier(); helper != "" {
+					status = sendNotice(ctx, helper, ev)
+				}
 				select {
 				case messages <- noticeResult{ev.ID, status, nil}:
 				case <-ctx.Done():
@@ -137,6 +142,7 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 	lastPersist := time.Time{}
 	protection := newProtectionMonitor(opts.ProtectionHome, opts.StateDir, scanner.App, opts.protectionCheck)
 	cycle := func() error {
+		notifierConfigured := notifier() != ""
 		var report Report
 		if opts.HooksOnly {
 			report = Report{SchemaVersion: SchemaVersion, Parser: HookParserID, Coverage: "hook_inbox_ready", CheckedAt: time.Now().UTC()}
@@ -232,7 +238,7 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 				switch {
 				case ev.Kind == "sensitive_tool_access_requested":
 					saved.Notification = "recorded_only"
-				case opts.Notifier == "":
+				case !notifierConfigured:
 					saved.Notification = "not_configured"
 				case !selected[ev.ID]:
 					saved.Notification = "superseded_by_stronger_evidence"
@@ -329,6 +335,8 @@ func sendNotice(ctx context.Context, helper string, event Event) string {
 		return "invalid_helper_response"
 	}
 	switch response.Delivery {
+	case "not_configured":
+		return "not_configured"
 	case "accepted_by_os":
 		return "accepted_by_os"
 	case "unknown":

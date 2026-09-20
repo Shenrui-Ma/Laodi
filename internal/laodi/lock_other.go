@@ -1,4 +1,4 @@
-//go:build !darwin && !linux && !freebsd && !netbsd && !openbsd && !dragonfly
+//go:build !darwin && !linux && !freebsd && !netbsd && !openbsd && !dragonfly && !windows
 
 package laodi
 

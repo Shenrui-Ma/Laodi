@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -35,6 +36,9 @@ func updateTestExecutable(t *testing.T, installed bool) string {
 func TestUpdateDownloadsOfficialBootstrapAndPreservesArguments(t *testing.T) {
 	if updateBootstrapURL != "https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh" {
 		t.Fatal("updater must target the renamed repository")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell bootstrap; Windows downloader tested separately")
 	}
 	executable := updateTestExecutable(t, true)
 	state := filepath.Dir(filepath.Dir(executable))
@@ -194,6 +198,9 @@ func TestUpdateFailureCleansTemporaryFiles(t *testing.T) {
 }
 
 func TestUpdateStateDirectoryInference(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX launcher symlink; Windows routing tested separately")
+	}
 	executable := updateTestExecutable(t, true)
 	link := filepath.Join(t.TempDir(), "laodi-link")
 	if err := os.Symlink(executable, link); err != nil {
