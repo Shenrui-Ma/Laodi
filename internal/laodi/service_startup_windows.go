@@ -80,6 +80,8 @@ type startupLink struct {
 
 const startupLauncherReceipt = "startup-launcher.json"
 
+var errStartupLauncherIdentityUnavailable = errors.New("Startup launcher identity unavailable")
+
 func windowsStartupDirectory() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -352,7 +354,7 @@ func startupLauncherRunning(plan ServicePlan) (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.New("Startup launcher identity unavailable")
+		return false, errStartupLauncherIdentityUnavailable
 	}
 	defer syscall.CloseHandle(h)
 	wait, err := syscall.WaitForSingleObject(h, 0)
@@ -364,7 +366,14 @@ func startupLauncherRunning(plan ServicePlan) (bool, error) {
 	}
 	image, created, err := processIdentity(h)
 	if err != nil {
-		return false, err
+		// The launcher can exit between the zero-time wait and the identity
+		// query. Windows may then deny QueryFullProcessImageName even though
+		// this exact process handle is now signaled. Do not misclassify a
+		// completed graceful stop or crash as an ownership failure.
+		if wait, waitErr := syscall.WaitForSingleObject(h, 0); waitErr == nil && wait == 0 {
+			return false, nil
+		}
+		return false, errStartupLauncherIdentityUnavailable
 	}
 	if created != r.Created {
 		return false, nil
@@ -486,10 +495,13 @@ func stopWindowsStartup(plan ServicePlan) error {
 func waitWindowsStartupStopped(ctx context.Context, plan ServicePlan) error {
 	for {
 		running, err := startupLauncherRunning(plan)
-		if err != nil {
+		if err != nil && !errors.Is(err, errStartupLauncherIdentityUnavailable) {
 			return err
 		}
-		if !running {
+		// An exiting process may stop answering identity queries before its
+		// handle signals. Retry only this unavailable-identity case within the
+		// existing deadline; never treat unavailable ownership as stopped.
+		if err == nil && !running {
 			unlock, err := AcquireLock(plan.options.StateDir)
 			if err == nil {
 				unlock()
