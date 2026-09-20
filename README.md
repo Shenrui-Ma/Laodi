@@ -33,9 +33,7 @@ Laodi 是 AI 编程工具的隐私监控，检查 snapshot 与上传记录、工
 | 持续解析异常、读取失败或事件队列缺口 | 记录并限频提醒 |
 | Git 历史打包（需手动启用） | 限制归档目录读写 |
 
-默认监测无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出仅在本地检测，不保存原文或密钥正文。
-
-工具检测需接入 Hook；快照解析和归档限制目前仅适配一种客户端，其他产品需单独适配。[支持范围](docs/TOOL-HOOKS.md)
+默认监测无须管理员权限，不改命令、不拒绝工具调用、不修改代理。输入输出仅在本地检测，不保存原文和密钥。
 
 ## 安装和更新
 
@@ -73,7 +71,7 @@ $Laodi = Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe'
 & $Laodi update --version 'v0.4.1-windows.beta.1'
 ```
 
-Windows 更新需明确指定 Windows Release 标签，现有配置与记录保留。当前提供工具监测和通知，暂不提供 Git 历史打包限制。[Windows 使用说明](docs/WINDOWS.md)
+Windows 端当前提供工具监测和通知，暂不提供 Git 历史打包限制。[Windows 使用说明](docs/WINDOWS.md)
 
 Skill 随包提供，方便 Agent 查询；不影响后台独立运行。
 
