@@ -15,7 +15,7 @@ if (-not ('LaodiTestProcessOwner' -as [type])) {
 }
 $ownerScope = $null
 $previous = @{}
-foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR')) {
+foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR', 'LAODI_NATIVE_STARTUP_MONITOR_EXE')) {
     $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 Push-Location ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..')))
@@ -36,17 +36,27 @@ try {
     foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR')) {
         [Environment]::SetEnvironmentVariable($name, $testTemp, 'Process')
     }
+    # Exercise the login-startup backend with a real watcher and an isolated
+    # shortcut folder. This does not opt into real Task Scheduler registrations.
+    $startupMonitor = Join-Path $testTemp 'laodi-startup-fixture.exe'
+    & $Go build -o $startupMonitor ./cmd/laodi
+    if ($LASTEXITCODE -ne 0) { throw 'Could not build native startup monitor fixture.' }
+    [Environment]::SetEnvironmentVariable('LAODI_NATIVE_STARTUP_MONITOR_EXE', $startupMonitor, 'Process')
     Write-Host "Native test temporary directory: $testTemp"
     $testArguments = @('test', '-count=1')
     if ($Race) { $testArguments += '-race' }
     & $Go @testArguments ./...
     if ($LASTEXITCODE -ne 0) { throw 'Native Windows tests failed.' }
+    # Retain bounded native/legacy persistence diagnostics for the regression
+    # that cannot be reproduced by a cross-compile on another OS.
+    & $Go @testArguments -run '^TestWindowsStartupNativePersistenceSpecialPaths$' -v ./internal/laodi
+    if ($LASTEXITCODE -ne 0) { throw 'Native shortcut persistence regression failed.' }
     & $Go vet ./...
     if ($LASTEXITCODE -ne 0) { throw 'Windows Go vet failed.' }
 } finally {
     try {
         Pop-Location
-        foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR')) {
+        foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR', 'LAODI_NATIVE_STARTUP_MONITOR_EXE')) {
             [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process')
         }
         Remove-Item -LiteralPath $testTemp -Recurse -Force

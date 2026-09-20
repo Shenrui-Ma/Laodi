@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
@@ -16,13 +15,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
 	"time"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -38,21 +35,23 @@ type ServiceOptions struct {
 
 // A task is deliberately not represented as a launchd plist.
 type ServicePlan struct {
-	Label       string   `json:"label"`
-	Domain      string   `json:"domain"`
-	PlistPath   string   `json:"plist_path,omitempty"`
-	ReceiptPath string   `json:"receipt_path"`
-	Arguments   []string `json:"arguments"`
-	Plist       string   `json:"plist,omitempty"`
-	PlistHash   string   `json:"plist_hash,omitempty"`
-	UID         int      `json:"uid,omitempty"`
-	TaskName    string   `json:"task_name"`
-	TaskXML     string   `json:"task_xml"`
-	TaskHash    string   `json:"task_hash"`
-	UserSID     string   `json:"user_sid"`
-	options     ServiceOptions
-	runner      func(context.Context, ...string) error // Legacy launchd test injection only.
-	taskRunner  func(context.Context, string, ServicePlan) (windowsTask, error)
+	Label            string   `json:"label"`
+	Domain           string   `json:"domain"`
+	PlistPath        string   `json:"plist_path,omitempty"`
+	ReceiptPath      string   `json:"receipt_path"`
+	Arguments        []string `json:"arguments"`
+	Plist            string   `json:"plist,omitempty"`
+	PlistHash        string   `json:"plist_hash,omitempty"`
+	UID              int      `json:"uid,omitempty"`
+	TaskName         string   `json:"task_name"`
+	TaskXML          string   `json:"task_xml"`
+	TaskHash         string   `json:"task_hash"`
+	UserSID          string   `json:"user_sid"`
+	options          ServiceOptions
+	runner           func(context.Context, ...string) error // Legacy launchd test injection only.
+	taskRunner       func(context.Context, string, ServicePlan) (windowsTask, error)
+	startupRunner    func(context.Context, string, ServicePlan, string) (startupLink, error)
+	startupDirectory func() (string, error)
 }
 
 type windowsTask struct {
@@ -69,6 +68,11 @@ type serviceReceipt struct {
 	RegisteredHash string    `json:"registered_hash"`
 	UserSID        string    `json:"user_sid"`
 	InstalledAt    time.Time `json:"installed_at"`
+	Backend        string    `json:"backend,omitempty"`
+	StartupPath    string    `json:"startup_path,omitempty"`
+	LinkTarget     string    `json:"link_target,omitempty"`
+	LinkArguments  string    `json:"link_arguments,omitempty"`
+	LinkHash       string    `json:"link_hash,omitempty"`
 }
 
 func PlanService(options ServiceOptions) (ServicePlan, error) {
@@ -144,7 +148,7 @@ func PlanService(options ServiceOptions) (ServicePlan, error) {
 	if len(taskXML) > maxServiceFileBytes {
 		return ServicePlan{}, errors.New("service configuration exceeds size limit")
 	}
-	return ServicePlan{Label: serviceLabel, Domain: "interactive-user", ReceiptPath: filepath.Join(options.StateDir, serviceReceiptName), Arguments: args, TaskName: name, TaskXML: taskXML, TaskHash: serviceHash([]byte(taskXML)), UserSID: sid, options: options, taskRunner: runWindowsTask, runner: runLaunchctl}, nil
+	return ServicePlan{Label: serviceLabel, Domain: "interactive-user", ReceiptPath: filepath.Join(options.StateDir, serviceReceiptName), Arguments: args, TaskName: name, TaskXML: taskXML, TaskHash: serviceHash([]byte(taskXML)), UserSID: sid, options: options, taskRunner: runWindowsTask, runner: runLaunchctl, startupRunner: runWindowsStartup, startupDirectory: windowsStartupDirectory}, nil
 }
 
 func validateServicePlan(plan ServicePlan) error {
@@ -186,6 +190,20 @@ func inspectServiceOwnership(plan ServicePlan) (bool, error) {
 }
 
 func inspectWindowsTask(plan ServicePlan) (windowsTask, serviceReceipt, bool, error) {
+	if data, err := readServiceFile(plan.ReceiptPath); err == nil {
+		var receipt serviceReceipt
+		if decodeWindowsRecord(data, &receipt) != nil {
+			return windowsTask{}, receipt, false, errors.New("invalid Windows service receipt")
+		}
+		if receipt.Backend == "user_startup" {
+			return inspectWindowsStartup(plan, receipt)
+		}
+		if receipt.Backend != "" && receipt.Backend != "task_scheduler" {
+			return windowsTask{}, receipt, false, errors.New("unknown Windows service backend")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return windowsTask{}, serviceReceipt{}, false, errors.New("Windows service receipt unreadable; retained")
+	}
 	task, err := callWindowsTask(plan, "query")
 	if err != nil {
 		return task, serviceReceipt{}, false, err
@@ -235,6 +253,9 @@ func InstallService(plan ServicePlan) error {
 		if receipt.TaskHash != plan.TaskHash {
 			return errors.New("Laodi is installed with different settings; explicitly uninstall before changing the service")
 		}
+		if receipt.Backend == "user_startup" {
+			return startWindowsStartup(plan, receipt)
+		}
 		if task.State == 4 {
 			return nil
 		}
@@ -244,12 +265,24 @@ func InstallService(plan ServicePlan) error {
 	}
 	registered, err := callWindowsTask(plan, "create")
 	if err != nil {
+		var failure *windowsServiceError
+		if errors.As(err, &failure) && failure.Class == "access_denied" && failure.Stage == "register" && failure.HResult == -2147024891 {
+			// A failed registration must not have left a task or receipt behind.
+			current, _, nowOwned, checkErr := inspectWindowsTask(plan)
+			if checkErr != nil {
+				return errors.Join(err, checkErr)
+			}
+			if current.Exists || nowOwned {
+				return errors.New("task creation left ownership ambiguous; refusing fallback")
+			}
+			return installWindowsStartup(plan)
+		}
 		return err
 	}
 	if !registered.Exists || registered.XML == "" {
 		return errors.New("task registration returned no verifiable configuration; task retained for manual review")
 	}
-	receipt = serviceReceipt{SchemaVersion: SchemaVersion, Label: plan.Label, TaskName: plan.TaskName, TaskHash: plan.TaskHash, RegisteredHash: serviceHash([]byte(registered.XML)), UserSID: plan.UserSID, InstalledAt: time.Now().UTC()}
+	receipt = serviceReceipt{Backend: "task_scheduler", SchemaVersion: SchemaVersion, Label: plan.Label, TaskName: plan.TaskName, TaskHash: plan.TaskHash, RegisteredHash: serviceHash([]byte(registered.XML)), UserSID: plan.UserSID, InstalledAt: time.Now().UTC()}
 	data, _ := json.Marshal(receipt)
 	if err := writeNewServiceFile(plan.ReceiptPath, append(data, '\n')); err != nil {
 		// Registration succeeded, but ownership publication failed. The remove
@@ -276,6 +309,9 @@ func startWindowsService(plan ServicePlan) error {
 	if receipt.TaskHash != plan.TaskHash {
 		return errors.New("owned Windows service settings differ from the requested plan")
 	}
+	if receipt.Backend == "user_startup" {
+		return startWindowsStartup(plan, receipt)
+	}
 	if task.State == 4 {
 		return nil
 	}
@@ -285,12 +321,15 @@ func startWindowsService(plan ServicePlan) error {
 }
 
 func stopWindowsService(plan ServicePlan) error {
-	task, _, owned, err := inspectWindowsTask(plan)
+	task, receipt, owned, err := inspectWindowsTask(plan)
 	if err != nil {
 		return err
 	}
 	if !owned {
 		return errors.New("no owned Windows service")
+	}
+	if receipt.Backend == "user_startup" {
+		return stopWindowsStartup(plan)
 	}
 	if task.State != 4 {
 		return nil
@@ -313,9 +352,12 @@ func waitWindowsTaskStopped(plan ServicePlan) error {
 	// A stable launcher can outlive its versioned child briefly. Wait for the
 	// exact task to settle before removal; never force-end the launcher.
 	for {
-		current, _, _, err := inspectWindowsTask(plan)
+		current, receipt, _, err := inspectWindowsTask(plan)
 		if err != nil {
 			return err
+		}
+		if receipt.Backend == "user_startup" {
+			return waitWindowsStartupStopped(ctx, plan)
 		}
 		if current.State != 4 {
 			return nil
@@ -337,7 +379,7 @@ func UninstallService(plan ServicePlan) error {
 		return err
 	}
 	defer release()
-	task, _, owned, err := inspectWindowsTask(plan)
+	task, receipt, owned, err := inspectWindowsTask(plan)
 	if err != nil {
 		return err
 	}
@@ -351,10 +393,16 @@ func UninstallService(plan ServicePlan) error {
 	if err != nil {
 		return err
 	}
-	cleanup := plan
-	cleanup.TaskXML = task.XML
-	if _, err := callWindowsTask(cleanup, "delete-exact"); err != nil {
-		return err
+	if receipt.Backend == "user_startup" {
+		if _, err := callWindowsStartup(plan, "delete", receipt.LinkHash); err != nil {
+			return err
+		}
+	} else {
+		cleanup := plan
+		cleanup.TaskXML = task.XML
+		if _, err := callWindowsTask(cleanup, "delete-exact"); err != nil {
+			return err
+		}
 	}
 	return removeServiceFile(plan.ReceiptPath, serviceHash(data))
 }
@@ -375,11 +423,11 @@ func runWindowsTask(ctx context.Context, operation string, plan ServicePlan) (wi
 	// Only management operations start built-in Windows PowerShell. Hook events
 	// and the resident monitor do not incur a PowerShell process per event.
 	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
-	script := `$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $svc=New-Object -ComObject 'Schedule.Service'; $svc.Connect(); $folder=$svc.GetFolder('\'); $name=` + quote(plan.TaskName) + `; $task=$null; try { $task=$folder.GetTask($name) } catch { if ($_.Exception.HResult -ne -2147024894 -and $_.Exception.InnerException.HResult -ne -2147024894) { throw } }; `
+	script := `$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $stage='connect'; $svc=New-Object -ComObject 'Schedule.Service'; $svc.Connect(); $folder=$svc.GetFolder('\'); $name=` + quote(plan.TaskName) + `; $task=$null; try { $task=$folder.GetTask($name) } catch { if ($_.Exception.HResult -ne -2147024894 -and $_.Exception.InnerException.HResult -ne -2147024894) { throw } }; `
 	switch operation {
 	case "query":
 	case "create":
-		script += `if ($null -ne $task) { throw 'Task already exists; refusing overwrite' }; $xml=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(` + quote(base64.StdEncoding.EncodeToString([]byte(plan.TaskXML))) + `)); $task=$folder.RegisterTask($name,$xml,2,` + quote(plan.UserSID) + `,$null,3,$null); `
+		script += `if ($null -ne $task) { throw 'Task already exists; refusing overwrite' }; $xml=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(` + quote(base64.StdEncoding.EncodeToString([]byte(plan.TaskXML))) + `)); $stage='register'; $task=$folder.RegisterTask($name,$xml,2,` + quote(plan.UserSID) + `,$null,3,$null); `
 	case "run":
 		script += `if ($null -eq $task) { throw 'Task missing' }; $expected=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(` + quote(base64.StdEncoding.EncodeToString([]byte(plan.TaskXML))) + `)); if ($task.Xml -cne $expected) { throw 'Task configuration changed; refusing run' }; $null=$task.Run($null); `
 	case "delete-exact":
@@ -388,26 +436,9 @@ func runWindowsTask(ctx context.Context, operation string, plan ServicePlan) (wi
 		return windowsTask{}, errors.New("unsupported Windows task operation")
 	}
 	script += `if ($null -eq $task) { @{exists=$false;xml='';state=0}|ConvertTo-Json -Compress } else { @{exists=$true;xml=[string]$task.Xml;state=[int]$task.State}|ConvertTo-Json -Compress }`
-	encoded := utf16.Encode([]rune(script))
-	raw := make([]byte, len(encoded)*2)
-	for i, v := range encoded {
-		binary.LittleEndian.PutUint16(raw[i*2:], v)
-	}
-	windowsDir := os.Getenv("SystemRoot")
-	if !filepath.IsAbs(windowsDir) {
-		return windowsTask{}, errors.New("SystemRoot is not an absolute path")
-	}
-	cmd := exec.CommandContext(ctx, filepath.Join(windowsDir, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"), "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", base64.StdEncoding.EncodeToString(raw))
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	var output, diagnostics serviceBoundedBuffer
-	cmd.Stdout = &output
-	cmd.Stderr = &diagnostics
-	if err := cmd.Run(); err != nil {
-		return windowsTask{}, fmt.Errorf("Task Scheduler rejected %s: %w; %s", operation, err, strings.TrimSpace(diagnostics.String()))
-	}
 	var result windowsTask
-	if err := json.Unmarshal(bytes.TrimPrefix(output.Bytes(), []byte{0xef, 0xbb, 0xbf}), &result); err != nil {
-		return result, fmt.Errorf("invalid bounded Task Scheduler response: %w", err)
+	if err := runServicePowerShell(ctx, script, &result); err != nil {
+		return result, err
 	}
 	if len(result.XML) > maxServiceFileBytes {
 		return result, errors.New("task XML exceeds size limit")

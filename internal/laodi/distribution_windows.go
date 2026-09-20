@@ -604,6 +604,13 @@ func installWindowsDistribution(p DistributionPlan) (result DistributionResult, 
 	if err != nil {
 		return result, err
 	}
+	defer func() {
+		backend, reason, inspectErr := WindowsServiceBackend(service)
+		if inspectErr == nil {
+			result.BackgroundMode = backend
+			result.BackgroundReason = reason
+		}
+	}()
 	if p.PendingRecovery {
 		// Serialize recovery with direct service/hook management just as for a
 		// fresh upgrade. Release before InstallService, which takes this lock.

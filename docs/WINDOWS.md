@@ -2,7 +2,7 @@
 
 ## 发布状态
 
-当前提供 Windows 11 x64 BETA：`v0.4.1-windows.beta.1`。它使用独立 Windows 安装包，macOS ZIP 不能用于 Windows。BETA 不代表所有交互与长时间运行验收均已完成。
+当前提供 Windows 11 x64 BETA：`v0.4.1-windows.beta.2`。它使用独立 Windows 安装包，macOS ZIP 不能用于 Windows。BETA 不代表所有交互与长时间运行验收均已完成。
 
 已有实现包括本地工具事件监测、当前用户后台任务、安装更新、脱敏记录与通知管理。Windows 默认只接收工具事件；Git 历史打包限制仍仅支持 macOS，Windows 快照格式未通过适配时会报告覆盖不足。
 
@@ -13,10 +13,20 @@
 在普通 PowerShell 中执行：
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.1/install.ps1').Content)) -Version 'v0.4.1-windows.beta.1'
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.2/install.ps1').Content)) -Version 'v0.4.1-windows.beta.2'
 ```
 
 脚本从对应 Release 下载 Windows 包并校验 ZIP 与包内文件。不修改 PATH，默认安装到当前用户目录。更新保留配置与记录。
+
+## 计划任务被拒绝时
+
+如果旧版显示 `0x80070005`、`Access denied` 或“文件已安装但后台未连接”，先不要反复提权、改系统 ACL 或删除任务目录。直接重新运行上面的 beta.2 安装命令：它会使用新安装器修复已有的部分安装，保留配置和记录。旧 beta.1 的 `update` 仍由旧安装器执行，遇到这类失败时不能代替重新运行新安装命令。
+
+新版优先保留已有的计划任务。只有首次创建明确被系统拒绝，且确认没有既有任务或收据时，才改用**当前用户的登录启动项**。已有任务、被修改的启动项或不明确错误不会被自动接管。它不要求提升权限，不修改系统安全策略，也不改变用户禁用启动项的设置。
+
+安装输出会区分“计划任务”和“当前用户登录启动”。必须看到后台运行检查通过，才能确认监控运行；“程序已复制”不代表已生效，“已接入工具 0”也需要结合是否完成安装判断。
+
+登录启动项可能受系统启动设置影响，且不提供计划任务的崩溃重启能力。可用 `status` 检查监测是否仍在运行；如果用户或系统禁用了启动项，由用户在 Windows 启动应用设置中决定是否恢复。
 
 ## 本地候选包安装与更新
 
@@ -60,7 +70,7 @@ Windows 更新必须显式指定**包含 Windows 资产**的 Release 标签。�
 更新到当前 Windows BETA：
 
 ```powershell
-& $Laodi update --version 'v0.4.1-windows.beta.1'
+& $Laodi update --version 'v0.4.1-windows.beta.2'
 ```
 
 后续更新时替换为目标 Windows Release 标签；本地候选包仍可用前述安装方式更新。
