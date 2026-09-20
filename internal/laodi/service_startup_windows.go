@@ -58,7 +58,7 @@ func runServicePowerShell(ctx context.Context, body string, out any) error {
 			e.Class = "operation_failed"
 		}
 		switch e.Stage {
-		case "connect", "register", "operation":
+		case "connect", "register", "operation", "shortcut_shell", "shortcut_create", "shortcut_configure", "shortcut_save", "shortcut_verify":
 		default:
 			e.Stage = "operation"
 		}
@@ -235,7 +235,7 @@ func runWindowsStartup(ctx context.Context, op string, plan ServicePlan, hash st
 		}
 		defer os.Remove(temp)
 		var checked struct{ Target, Arguments string }
-		script := `$w=New-Object -ComObject WScript.Shell; $l=$w.CreateShortcut(` + psQuote(temp) + `); $l.TargetPath=` + psQuote(link.Target) + `; $l.Arguments=` + psQuote(link.Arguments) + `; $l.WorkingDirectory=` + psQuote(filepath.Dir(link.Target)) + `; $l.WindowStyle=7; $l.Description='Laodi user background monitoring'; $l.Save(); $l=$w.CreateShortcut(` + psQuote(temp) + `); @{Target=[string]$l.TargetPath;Arguments=[string]$l.Arguments}|ConvertTo-Json -Compress`
+		script := `$stage='shortcut_shell'; $w=New-Object -ComObject WScript.Shell; $stage='shortcut_create'; $l=$w.CreateShortcut(` + psQuote(temp) + `); $stage='shortcut_configure'; $l.TargetPath=` + psQuote(link.Target) + `; $l.Arguments=` + psQuote(link.Arguments) + `; $l.WorkingDirectory=` + psQuote(filepath.Dir(link.Target)) + `; $l.WindowStyle=7; $l.Description='Laodi user background monitoring'; $stage='shortcut_save'; $l.Save(); $stage='shortcut_verify'; $l=$w.CreateShortcut(` + psQuote(temp) + `); @{Target=[string]$l.TargetPath;Arguments=[string]$l.Arguments}|ConvertTo-Json -Compress`
 		if err := runServicePowerShell(ctx, script, &checked); err != nil {
 			return link, err
 		}

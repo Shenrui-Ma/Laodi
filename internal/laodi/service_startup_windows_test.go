@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func startupFixture(t *testing.T) (ServicePlan, *startupLink, *int) {
@@ -438,8 +440,10 @@ func TestWindowsStartupNativeInheritedAdminDirectory(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	var before string
-	script := `$acl=Get-Acl -LiteralPath ` + psQuote(dir) + `; $acl.SetSecurityDescriptorSddlForm(` + psQuote("D:P(A;OICI;FA;;;"+p.UserSID+")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)") + `); Set-Acl -LiteralPath ` + psQuote(dir) + ` -AclObject $acl; (Get-Acl -LiteralPath ` + psQuote(dir) + `).Sddl|ConvertTo-Json -Compress`
-	if err := runServicePowerShell(ctx, script, &before); err != nil {
+	// Set only DACL information, matching setPrivateTestPermissions. Get-Acl /
+	// Set-Acl can also request owner/SACL privileges on otherwise ordinary users.
+	setStartupTestDACL(t, dir, "D:P(A;OICI;FA;;;"+p.UserSID+")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)")
+	if err := runServicePowerShell(ctx, `(Get-Acl -LiteralPath `+psQuote(dir)+`).Sddl|ConvertTo-Json -Compress`, &before); err != nil {
 		t.Fatal(err)
 	}
 	root, err := openStateRoot(p.options.StateDir, true)
@@ -488,5 +492,27 @@ func TestWindowsStartupNativeRejectsHardLinkedEntry(t *testing.T) {
 	}
 	if data, err := os.ReadFile(source); err != nil || string(data) != "foreign shortcut" {
 		t.Fatal("foreign source changed")
+	}
+}
+
+func setStartupTestDACL(t *testing.T, path, sddl string) {
+	t.Helper()
+	text, err := syscall.UTF16PtrFromString(sddl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sd uintptr
+	ok, _, callErr := convertSD.Call(uintptr(unsafe.Pointer(text)), 1, uintptr(unsafe.Pointer(&sd)), 0)
+	if ok == 0 {
+		t.Fatal(callErr)
+	}
+	defer syscall.LocalFree(syscall.Handle(sd))
+	name, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, _, callErr = fileAdvapi.NewProc("SetFileSecurityW").Call(uintptr(unsafe.Pointer(name)), 4|0x80000000, sd)
+	if ok == 0 {
+		t.Fatal(callErr)
 	}
 }
