@@ -54,7 +54,7 @@ if [ -e "$release_output" ]; then
 fi
 release_work=$(mktemp -d "${TMPDIR:-/tmp}/laodi-release.XXXXXX")
 trap 'rm -rf "$release_work"' EXIT HUP INT TERM
-release_bundle="$release_work/package/Laodi-skills"
+release_bundle="$release_work/package/Laodi"
 mkdir -p "$release_bundle/skills"
 
 for release_arch in arm64 amd64; do
@@ -93,7 +93,7 @@ if ! printf '%s\n' "$release_minos" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; th
   echo 'Unable to verify the Go binary deployment target.' >&2
   exit 1
 fi
-release_archive="Laodi-skills-$release_tag-macos-universal.zip"
+release_archive="Laodi-$release_tag-macos-universal.zip"
 release_built_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 cat > "$release_work/build-info.json" <<EOF
 {
@@ -118,7 +118,7 @@ cat > "$release_work/build-info.json" <<EOF
 }
 EOF
 # COPYFILE_DISABLE avoids resource forks; -X excludes machine-specific extra fields.
-(cd "$release_work/package" && COPYFILE_DISABLE=1 zip -q -X -r "$release_work/$release_archive" Laodi-skills)
+(cd "$release_work/package" && COPYFILE_DISABLE=1 zip -q -X -r "$release_work/$release_archive" Laodi)
 mkdir -p "$release_output"
 cp "$release_work/$release_archive" "$release_output/$release_archive"
 cp "$release_work/build-info.json" "$release_output/build-info.json"

@@ -48,7 +48,7 @@ def main() -> int:
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, default=root / 'bin/laodi')
-    parser.add_argument('--output', type=Path, default=root / 'docs/spikes/v1-go-resource-results.json')
+    parser.add_argument('--output', type=Path, default=root / '.omx/experiments/v1-go-resource-results.json')
     parser.add_argument('--manifest-count', type=int, default=100)
     parser.add_argument('--files-per-manifest', type=int, default=1)
     args = parser.parse_args()

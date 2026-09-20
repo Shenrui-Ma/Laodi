@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Shenrui-Ma/Laodi-skills/internal/laodi"
+	"github.com/Shenrui-Ma/Laodi/internal/laodi"
 )
 
 func defaultStateDir(home string) string {

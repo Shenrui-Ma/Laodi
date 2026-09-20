@@ -145,7 +145,7 @@ def cases(tools: dict) -> list[dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repetitions", type=int, default=5)
-    parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / "docs/spikes/s0-compatibility-results.json")
+    parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / ".omx/experiments/s0-compatibility-results.json")
     args = parser.parse_args()
     if args.repetitions < 1:
         parser.error("--repetitions must be positive")

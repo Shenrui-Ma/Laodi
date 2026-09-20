@@ -103,7 +103,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--idle-seconds', type=float, default=20.0)
     parser.add_argument('--child-directory', type=Path, help=argparse.SUPPRESS)
-    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[2] / 'docs/spikes/s0-watcher-resource-results.json')
+    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[2] / '.omx/experiments/s0-watcher-resource-results.json')
     args = parser.parse_args()
     if platform.system() != 'Darwin':
         parser.error('This probe measures macOS kqueue and Darwin ru_maxrss units')

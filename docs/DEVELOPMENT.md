@@ -1,6 +1,6 @@
 # 开发版使用与离线验证
 
-当前开发线：`0.3.0`。普通使用者请直接下载预编译Release，见[二进制安装](BINARY-INSTALL.md)；以下构建命令面向开发者。已有Go命令行、快照与工具事件监测、持久化去重、薄Skill和无窗口通知helper。新增ZCode/Claude Code异步工具适配，详见[接入说明](TOOL-HOOKS.md)。实机回调、完整上传流程、系统通知送达和长期稳定性仍未全部验收，不是正式发布版。
+本文面向源码开发与回归验证。普通使用者请直接下载预编译Release，见[二进制安装](BINARY-INSTALL.md)；以下构建命令面向开发者。已有Go命令行、快照与工具事件监测、持久化去重、薄Skill和无窗口通知helper。新增适配器 A/B异步工具适配，详见[接入说明](TOOL-HOOKS.md)。实机回调、完整上传流程、系统通知送达和长期稳定性仍未全部验收，不是正式发布版。
 
 ## 构建
 
@@ -21,7 +21,7 @@ sh platform/macos/notifier/build.sh
 
 ## 当前解析范围
 
-- 已静态核对的ZCode构建：`3.12.3.7463`，详见[契约](spikes/ZCODE-3.12.3-CONTRACT.md)。
+- 快照解析仅支持代码中明确列出的客户端构建，详见[快照格式](SNAPSHOT-FORMAT.md)。
 - 默认从已安装App的Info.plist发现构建；监测期间文件变化会重新检查。未知构建明确降级。
 - 读取已知checkpoint下的manifest/state；不跟随state中的任意绝对路径，不读取manifest指向的源码或Git对象。
 - 历史事件针对清单中`.git/objects/…`与`.git/lfs/objects/…`路径及对应状态；`.git`指针、HEAD、config、reflog不会被当成历史对象。另独立识别extra清单global-configs组，即使工作区没有Git也可产生附加配置证据。
@@ -32,7 +32,7 @@ sh platform/macos/notifier/build.sh
 
 ## 查询与前台监测
 
-以下默认查询的是用户明确选择使用的本地ZCode证据位置。[已完成的用户授权只读观察](spikes/ZCODE-LIVE-OBSERVATION.md)与合成测试分开记录；开发回归只用临时目录。
+以下默认查询用户明确选择使用的本地客户端证据位置。开发回归只用临时目录，具体实机观察记录保留在本地。
 
 ```bash
 ./bin/laodi check --format agent-summary
@@ -47,7 +47,7 @@ sh platform/macos/notifier/build.sh
 ./bin/laodi watch --interval 2s
 ```
 
-`watch`只运行Laodi，不启动、暂停、终止或限制ZCode/Agent。首次已有记录作为基线，后续新观察记录持久化。退出用Ctrl-C；状态目录保持用户私有权限，另一个监测实例不能同时写同一状态。
+`watch`只运行Laodi，不启动、暂停、终止或限制某APP/Agent。首次已有记录作为基线，后续新观察记录持久化。退出用Ctrl-C；状态目录保持用户私有权限，另一个监测实例不能同时写同一状态。
 
 macOS用户级后台接入接口已实现；本轮只用假launchctl执行器和临时目录验证，未在用户系统安装：
 
@@ -78,42 +78,38 @@ macOS用户级后台接入接口已实现；本轮只用假launchctl执行器和
 ```bash
 python3 scripts/dev/verify_monitor_workflow.py \
   --binary bin/laodi \
-  --output docs/spikes/v1-monitor-workflow-results.json
+  --output .omx/experiments/v1-monitor-workflow-results.json
 ```
 
-测试并行运行实际Go监测器与12次Git操作，检查旧记录静默、新事件出现、重启去重、Agent摘要不含项目路径、监测不改源HEAD/index。数据形状来自已安装ZCode包的静态契约，但测试不启动ZCode、不调用模型、不发送系统通知。
+测试并行运行实际Go监测器与12次Git操作，检查旧记录静默、新事件出现、重启去重、Agent摘要不含项目路径、监测不改源HEAD/index。数据形状来自已安装某APP包的静态契约，但测试不启动某APP、不调用模型、不发送系统通知。
 
 公开案例的持续监测回放（默认2秒间隔）：
 
 ```bash
 python3 scripts/dev/replay_public_cases.py \
   --binary bin/laodi \
-  --output docs/spikes/v1-public-case-replay-results.json
+  --output .omx/experiments/v1-public-case-replay-results.json
 ```
 
-它记录从合成清单/状态落盘到Laodi事件保存的延迟；不测系统通知送达，也不证明能先于真实上传。分类回归另覆盖42,411条清单、失败次数、旧新hash、无Git接受记录、附加配置、pending清理及升级基线，详见[案例报告](spikes/ZCODE-PUBLIC-CASES.md)。
+它记录从合成清单/状态落盘到Laodi事件保存的延迟；不测系统通知送达，也不证明能先于真实上传。分类回归另覆盖42,411条清单、失败次数、旧新hash、无Git接受记录、附加配置、pending清理及升级基线。生成的具体实验结果仅保留在本地。
 
 资源测量：
 
 ```bash
 python3 scripts/dev/measure_go_monitor.py
 python3 scripts/dev/measure_go_monitor.py --manifest-count 1 --files-per-manifest 42411 \
-  --output docs/spikes/v1-public-case-large-resource-results.json
+  --output .omx/experiments/v1-public-case-large-resource-results.json
 ```
 
 执行期间不要覆盖二进制。22秒短测不替代72小时稳定性、真实快照负载或通知helper资源测量。
 
 新增分类的升级基线只静默一次，既有Git/配置事件继续去重、新事件照常出现。若升级首次扫描不完整，后续发现会标记时间未知；不会为了等待完整扫描而永久静默。旧版未记录的parser显示unknown，不借当前CLI版本伪装历史解析结果。
 
-## 为真实ZCode测试准备环境
+## 真实客户端测试环境
 
-```bash
-python3 scripts/dev/prepare_zcode_lab.py --output .omx/zcode-lab.json
-```
+使用独立 OS 用户或隔离虚拟机，准备合成 Git 仓库和无效凭据。先验证客户端实例、版本、登录回调及配置位置，再运行测试；不要在真实项目中诱发敏感上传。
 
-它只准备独立应用数据目录、合成Git仓库、手动启动脚本和测试任务，不启动或登录ZCode。目录覆盖不是OS安全隔离，不能隔离Keychain、浏览器和系统账号；需要更强保证时使用独立OS用户/VM。
-
-用户随后已在日常ZCode实例登录并授权只读观察；本轮没有启动上述独立实例。用户无需在真实项目中诱发敏感上传。未来真实客户端对照应使用独立OS用户/VM和合成内容，先验证实例/登录回调落点。没有真实checkpoint不能据此判断已修复，也不能证明适配器端到端有效。
+目录覆盖不是 OS 安全隔离，不能隔离 Keychain、浏览器和系统账号。没有真实 checkpoint 不能据此判断客户端已修复，也不能证明适配器端到端有效。具体准备脚本及观察记录保留在本地实验材料中。
 
 ## 数据和失败边界
 

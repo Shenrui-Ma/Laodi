@@ -1,6 +1,6 @@
 #!/bin/sh
 # Download a verified release and delegate setup to its installer. No build tools.
-# Usage: curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | sh
 # Options: sh install.sh [--version vMAJOR.MINOR.PATCH[-PRERELEASE]] [install options]
 set -eu
 umask 077
@@ -13,7 +13,7 @@ fail() {
 main() {
   # User archive-tool defaults must not alter inspection or the extraction directory.
   unset UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT
-  laodi_version=${LAODI_VERSION:-v0.4.0-preview.1}
+  laodi_version=${LAODI_VERSION:-v0.4.1-beta.1}
   case "${1:-}" in
     --version)
       [ "$#" -ge 2 ] || fail '--version requires a release tag.'
@@ -43,7 +43,7 @@ main() {
     }
     END { exit (NR != 1 || bad) }
   '; then
-    fail 'Use a release tag such as v0.4.0-preview.1.'
+    fail 'Use a release tag such as v0.4.1-beta.1.'
   fi
 
   [ "$(uname -s)" = Darwin ] || fail 'This release supports macOS only; Windows support is planned.'
@@ -62,8 +62,13 @@ main() {
   trap 'exit 130' INT
   trap 'exit 143' TERM
   chmod 700 "$laodi_tmp"
-  laodi_asset="Laodi-skills-$laodi_version-macos-universal.zip"
-  laodi_base="https://github.com/Shenrui-Ma/Laodi-skills/releases/download/$laodi_version"
+  # Historical tags used the former package name; no network-error fallback.
+  case "$laodi_version" in
+    v0.3.0-preview.1|v0.3.0-preview.2|v0.4.0-preview.1) laodi_package=Laodi-skills ;;
+    *) laodi_package=Laodi ;;
+  esac
+  laodi_asset="$laodi_package-$laodi_version-macos-universal.zip"
+  laodi_base="https://github.com/Shenrui-Ma/Laodi/releases/download/$laodi_version"
   printf 'Laodi: downloading %s for macOS.\n' "$laodi_version"
   # -q ignores curlrc; HTTPS-only redirects preserve TLS verification and proxy settings.
   if ! curl -q --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
@@ -94,9 +99,9 @@ main() {
   zipinfo -1 "$laodi_tmp/package.zip" > "$laodi_tmp/paths" || fail 'Cannot inspect the release ZIP.'
   # Releases contain ordinary files only. Reject traversal, ambiguous/duplicate paths,
   # control characters, whitespace and names outside the single package directory.
-  if ! laodi_entries=$(LC_ALL=C awk '
+  if ! laodi_entries=$(LC_ALL=C awk -v package="$laodi_package" '
     {
-      if ($0 !~ /^Laodi-skills\/[A-Za-z0-9._\/-]*$/ || $0 ~ /\/\// || $0 ~ /\/(\.|\.\.)(\/|$)/) bad = 1
+      if ($0 !~ ("^" package "/[A-Za-z0-9._/-]*$") || $0 ~ /\/\// || $0 ~ /\/(\.|\.\.)(\/|$)/) bad = 1
       path = tolower($0); sub(/\/$/, "", path)
       if (seen[path]++) bad = 1
     }
@@ -119,7 +124,7 @@ main() {
   unzip -q "$laodi_tmp/package.zip" -d "$laodi_tmp/unpacked" || fail 'Cannot extract the verified release.'
   laodi_links=$(find "$laodi_tmp/unpacked" -type l -print) || fail 'Cannot verify extracted file types.'
   [ -z "$laodi_links" ] || fail 'Unexpected links in the extracted release; no installer was run.'
-  laodi_binary="$laodi_tmp/unpacked/Laodi-skills/laodi"
+  laodi_binary="$laodi_tmp/unpacked/$laodi_package/laodi"
   [ -f "$laodi_binary" ] && [ -x "$laodi_binary" ] || fail 'The release does not contain an executable installer.'
   printf 'Laodi: checksum and archive verified; starting setup.\n'
   # Preserve argv and the installer status, including partially completed setup errors.

@@ -1,4 +1,4 @@
-# Laodi-skills 验证矩阵与发布门槛
+# Laodi 验证矩阵与发布门槛
 
 > 当前V1按[PRODUCT-V1.md](PRODUCT-V1.md)第8–9节验收不打断Git/长任务的监测模式。本文件的launcher/系统阻断矩阵继续用于研究，不能作为V1默认启用理由，也不能把普通监测叫成已通过阻断验收。
 
@@ -29,7 +29,7 @@
 - 一个仅出现在旧 commit、当前已删除的合成秘密。
 - 一个当前允许发送的公开样本文件。
 - 敏感配置的公开证书/假密钥/普通同名文件，避免把文件名匹配当有效密钥鉴定。
-- ZCode manifest/state 的合成正常、pending、失败、accepted、损坏、超限和未知版本样本。
+- 某APP manifest/state 的合成正常、pending、失败、accepted、损坏、超限和未知版本样本。
 - 可落盘归档、内存压缩、先加密再上传三种 fake-client 行为。
 
 ## 3. Preview：观察器与告警

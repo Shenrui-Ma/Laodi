@@ -167,6 +167,6 @@ if __name__ == "__main__":
     else:
         parser=argparse.ArgumentParser(description=__doc__)
         parser.add_argument("--runtime-dir",type=Path,required=True)
-        parser.add_argument("--output",type=Path,default=Path(__file__).resolve().parents[2]/"docs/spikes/s0-runtime-results.json")
+        parser.add_argument("--output",type=Path,default=Path(__file__).resolve().parents[2]/".omx/experiments/s0-runtime-results.json")
         args=parser.parse_args()
         raise SystemExit(main(args.runtime_dir,args.output))

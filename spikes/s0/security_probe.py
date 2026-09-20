@@ -333,5 +333,5 @@ if __name__ == "__main__":
         raise SystemExit(client(*sys.argv[2:]))
     else:
         parser = argparse.ArgumentParser()
-        parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / "docs/spikes/s0-security-results.json")
+        parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / ".omx/experiments/s0-security-results.json")
         raise SystemExit(main(parser.parse_args().output))

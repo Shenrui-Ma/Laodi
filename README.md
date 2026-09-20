@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="assets/laodi-logo.png" width="180" alt="Laodi-skills 老底标志">
+  <img src="assets/laodi-logo.png" width="180" alt="Laodi 老底标志">
 </p>
-<h1 align="center">Laodi-skills · 老底</h1>
+<h1 align="center">Laodi · 老底</h1>
 
 <p>
   <img src="assets/chat-demo.png" width="390" align="left" alt="聊天记录截图">
 </p>
 
 <h3>担心自己的 Git 历史被第三方工具悄悄上传？</h3>
-<p>Laodi-skills 保护你的 Git 老底。</p>
+<p>Laodi 保护你的 Git 老底。</p>
 <p>一次接入，后台监控。</p>
 <p>有小动作，及时提醒。</p>
 
@@ -19,33 +19,35 @@
 
 <br clear="all">
 
-Laodi-skills 是 AI 编程工具的隐私监控，监测项目快照和数据上传，检查编程工具输出的疑似凭据，系统通知提醒，并提供可供 Agent 查询的脱敏记录。
+Laodi 是 AI 编程工具的隐私监控，检查快照与上传记录、工具输出中的疑似凭据，通过系统通知提醒。
 
-**提供 macOS 预编译通用包，无需自行构建。** 
+**提供预编译通用包。**
 
 ## 作用
 
 | 检测范围 | 默认反馈 |
 | --- | --- |
-| 某APP和其他编程工具的快照记录：Git 对象、LFS、普通工作区等| 记录并通知 |
-| 某APP和其他编程工具中，已接入的 Bash、Read 请求里的敏感文件访问 | 仅记录，不弹通知 |
-| 已接入工具的输出中出现疑似令牌、私钥或凭据赋值 | 保存脱敏记录并通知 |
+| **某APP和其他编程工具**的快照记录：Git 对象、LFS、工作区、附加配置 | 记录并通知 |
+| **某APP和其他编程工具**中，Bash、Read 请求里的敏感文件访问 | 仅记录，不弹通知 |
+| 输出中出现疑似令牌、私钥或凭据赋值 | 脱敏记录并通知 |
 | 持续解析异常、读取失败或事件队列缺口 | 记录并限频提醒 |
-| 已核验客户端的额外快照归档（需手动启用） | 限制归档目录读写，保留普通 Git 操作 |
+| Git 历史打包（需手动启用） | 限制归档目录读写 |
 
-不影响正常 Git 操作和 Agent 长任务，默认无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出只用于本地检测，不作为原文保存，不保存密钥正文。
+默认监测无须管理员权限，不改命令、不拒绝工具调用、不修改代理。工具输入和输出仅在本地检测，不保存原文或密钥正文。
+
+工具检测需接入 Hook；快照解析和归档限制目前仅适配一种客户端，其他产品需单独适配。[支持范围](docs/TOOL-HOOKS.md)
 
 ## 安装和更新
 
 **macOS**：
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | sh
 ```
 
 已安装时会更新，保留配置和事件记录。
 
-[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi-skills/releases/tag/v0.4.0-preview.1) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
+[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi/releases/tag/v0.4.1-beta.1) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
 
 查看状态：
 
@@ -53,9 +55,11 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/instal
 "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" status
 ```
 
-Skill 随包提供，可按需接入；后台检测独立运行。
+Skill 随包提供，方便 Agent 查询；不影响后台独立运行。
 
-## 限制额外快照（实验性）
+## Git 历史打包（BETA）
+
+限制客户端在后台打包项目、Git 历史或配置，供后续上传。
 
 正常退出客户端后，执行一次：
 
@@ -63,9 +67,73 @@ Skill 随包提供，可按需接入；后台检测独立运行。
 "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" protect enable
 ```
 
-之后照常打开客户端。用 `protect status` 查看，用 `protect disable` 撤销（同样需要先退出客户端）。无需管理员权限，不改代理或证书。
+之后照常打开客户端。`protect status` 查看状态，`protect disable` 撤销；撤销前同样需退出客户端。
 
-只支持已核验版本的默认归档路径，不阻止工具读取或普通模型请求。客户端更新、权限变化后需要重新检查。[支持范围与恢复](docs/PROTECTION.md)
+仅限制适配版本的归档路径，不阻止文件读取或普通模型请求。[支持范围与恢复](docs/PROTECTION.md)
+
+## 实测
+
+`v0.4.0-preview.1` · Apple M5 Pro / macOS 26.3。合成数据测试，实际通知另行验证。
+
+涉及 **某APP** 的相关实验基于其 `3.12.3`（补丁前版本）展开。
+
+| 项目 | 结果 |
+| --- | --- |
+| 凭据输出检测 | 检出 **24/24** · 误报 **0/30** |
+| 敏感访问检测 | 检出 **26/26** · 误报 **0/18** |
+| 快照与状态识别 | 检出 **10/10** · 误报 **0/10** |
+| 关键词基线对照 | 误报 **16/30 → 0/30** · 检出均为 **24/24** |
+| 归档阻断 | 拒绝 **9/9** · 接收 **0/9** |
+| Git / checkpoint 兼容 | 通过 **27/27** |
+| 待传包撤销恢复 | 同一密文恢复 **9/9** |
+| 流程验证 / 重建回放 | 符合预期 **15/15** / **10/10** |
+| 真实任务通知 | 用户确认 **1 次**可见提醒 · 客户端回报 **8 项**测试通过 |
+
+检测使用两种 Hook 协议的配对样本，表中为**支持格式集**。挑战集有 38 项未检出：23 项报告覆盖缺口，15 项漏检；其中输出挑战集关键词基线检出 4/18，老底为 0/18。流程验证含未触发对照，不全是阻断测试。
+
+### 消融实验
+
+先对比三种合成程序在保护开关前后的发送结果，再逐项移除保护组件。测试新建归档和读取待传包，每种操作重复 3 次。
+
+| 实现 | 未保护接收 | 保护后接收 | 系统拒绝 | 撤销后接收 |
+| --- | --- | --- | --- | --- |
+| Python | 6/6 | **0/6** | **6/6** | 6/6 |
+| Node | 6/6 | **0/6** | **6/6** | 6/6 |
+| Shell + curl | 6/6 | **0/6** | **6/6** | 6/6 |
+
+固定路径限制可跨运行时生效；这不是三款真实产品验收。未保护路径仍有 9/9 次发送成功，其他产品需适配后验证。
+
+| 组件消融 | 接收结果 |
+| --- | --- |
+| 首次工作区：完整保护 / 仅移除目录继承 | **0/3 → 3/3** |
+| 已有待传包：目录限制、读取限制都保留 | **0/3** |
+| 已有待传包：仅保留其中一项限制 | 两组均 **0/3** |
+| 已有待传包：两项限制都移除 | **3/3** |
+
+资源占用：100 份不变清单、1,000 条目，三次约 22 秒运行，单监测进程峰值 RSS **12.20–12.42 MiB**，CPU **0.38–0.48%**。
+
+阻断在本机接收端验证，完整客户端对官方服务的归档阻断仍待验收。
+
+## 提醒后自查
+
+| 提醒 | 已做 | 处理 |
+| --- | --- | --- |
+| 敏感访问请求 | 仅记录 | 授权内操作可继续 |
+| 输出疑似凭据 | 脱敏记录、通知 | 核对用途；真实凭据可能暴露时撤销或轮换 |
+| 快照 / 上传记录 | 记录、通知 | 查事件与保护状态，按需限制 Git 历史打包 |
+| 监测或保护异常 | 诊断、提醒 | 查 `status`、`doctor`、`protect status` |
+
+老底自动监测并执行已启用的归档限制。接入 Skill 后，可直接询问 Agent：“查看老底提醒，告诉我怎么处理。”也可用命令查询：
+
+```sh
+"$HOME/Library/Application Support/Laodi-skills/runtime/laodi" incidents --format agent-summary
+```
+
+| 授权分类 | 例子 |
+| --- | --- |
+| 授权内 | 明确指定文件进行读取、修改，或分析指定提交；把用户给的 key 用于指定服务认证 |
+| 授权外 | 只授权改代码却额外上传完整历史；把认证用 key 回显或发送给另一服务，且没有相应授权 |
+| 待核实 | 只有路径、系统权限或快照线索，缺少任务、设置与目的地证据 |
 
 ## 架构
 
@@ -85,7 +153,7 @@ Skill 随包提供，可按需接入；后台检测独立运行。
 
 ## TODO
 
-- [ ] Windows 端适配。
+- [ ] Windows 端功能对齐。
 - [ ] 纯内存上传观测。
 
 ## 文档
@@ -93,17 +161,7 @@ Skill 随包提供，可按需接入；后台检测独立运行。
 - [工具 Hook：接入协议、检测规则与隐私边界](docs/TOOL-HOOKS.md)
 - [系统通知：授权、状态与送达边界](docs/NOTIFICATIONS.md)
 
-```sh
-git clone https://github.com/Shenrui-Ma/Laodi-skills.git
-cd Laodi-skills
-make build
-make test
-make check
-```
-
 [开发说明](docs/DEVELOPMENT.md) · [发布构建](scripts/release)
-
-</details>
 
 ## 许可证
 

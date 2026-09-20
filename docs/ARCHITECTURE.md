@@ -1,4 +1,4 @@
-# Laodi-skills 产品与仓库架构
+# Laodi 产品与仓库架构
 
 > 范围修订：本文件保留0.3系统防护研究路线。用户最新要求与S0实测后的当前V1以[PRODUCT-V1.md](PRODUCT-V1.md)为准：不默认拦截、不影响Git/长任务、无专用GUI、普通用户级监测。本文的系统扩展与严格启动器不再是首发前提。
 
@@ -6,11 +6,11 @@
 状态：待实现、待验证；命令、结构和界面均为规格。
 替代范围：替代 Git-Laodi 0.2 的一次性副本管理器主线。保留本地处理、确定性检查和诚实证据原则，不延续 B/W/R/Apply 产品闭环。
 
-后续进展：已完成一轮 [S0技术探针](spikes/S0-RESULTS.md)，验证了部分底层机制并发现功能与边界代价；不代表本文整套产品能力已经实现。完整`.git`拒绝策略会同时损失status/diff/add/commit；硬链接、既有FD、预载环境与外部代读服务不能仅靠路径deny解决。真实Codex＋本地stub在native及固定runtime两个后端中均有正反证据，正式系统扩展仍未授权验证。
+研究边界：S0 探针与具体结果保留在本地，不代表本文整套产品能力已经实现。完整 `.git` 拒绝策略可能损失普通 Git 功能；硬链接、既有 FD、预载环境与外部代读服务不能仅靠路径拒绝解决。正式系统扩展仍需单独授权和验证。
 
 ## 1. 决策与最新需求
 
-项目名固定为 **Laodi-skills（老底-skills）**；二进制拟名 `laodi`；主要 Skill 拟名 `laodi`。
+项目名固定为 **Laodi（老底-skills）**；二进制拟名 `laodi`；主要 Skill 拟名 `laodi`。
 
 最新需求优先级：
 
@@ -18,7 +18,7 @@
 2. 无法事先阻断的可观测行为，要及时发现并告知，且说明证据强度。
 3. 一次安装与必要授权后尽量少操作，在原开发目录继续工作。
 4. 足够轻量、容易安装、方便现有 Agent 调用。
-5. 借 ZCode 事件完成传播，但长期价值不依赖某厂商一直出问题。
+5. 以可验证的隐私风险处置为定位，长期价值不依赖某个厂商。
 
 据此选择：**本地隐私守护程序＋平台执行限制＋Agent Skill 入口**。
 
@@ -56,7 +56,7 @@
 
 初版无需分享卡生成器、复杂风险评分或“保护了多少亿元代码”的计数器。基本状态与一条可信警报已经提供记忆点。
 
-ZCode 事件只放在 `docs/WHY.md` 的带日期背景说明，引用原始资料并区分事实与未知。首页不以持续指控厂商为卖点，也不使用未经证实的训练、留存结论。
+具体事件来源和观察记录保留在本地，区分事实与未知。首页不以持续指控厂商为卖点，也不使用未经证实的训练、留存结论。
 
 ## 3. 交付形态与完成标准
 
@@ -105,7 +105,7 @@ ZCode 事件只放在 `docs/WHY.md` 的带日期背景说明，引用原始资�
 已登记项目          3
 敏感文件读取控制    生效（macOS 系统组件）
 出站连接规则        生效（本后端已验证的主体/端点范围，不检查 TLS 正文）
-ZCode 快照线索       兼容性已验证：<实际测试版本>
+某APP 快照线索       兼容性已验证：<实际测试版本>
 系统通知            已授权
 最近自检            通过，<时间>
 
@@ -270,9 +270,9 @@ Apple 已明确说明 AUTH 超过 deadline 时会终止 ES 客户端，并对该
 
 LuLu 等工具可作为用户已有的连接控制辅助；未核实稳定公开接口之前只提供可审阅的官方操作说明，不直接修改其内部数据库。[S8] Laodi 不把“安装了防火墙”当成“已检查上传内容”。
 
-### 8.4 ZCode 已知机制处置
+### 8.4 某APP 已知机制处置
 
-ZCode 是首个**观察器解析器**，不是核心唯一依赖。将客户端版本、数据目录、schema 与已验证字段语义绑定。
+某APP 是首个**观察器解析器**，不是核心唯一依赖。将客户端版本、数据目录、schema 与已验证字段语义绑定。
 
 锁 checkpoint 目录等办法最多作为实验性、版本限定的缓解动作：先保全记录、确认应用暂停、记录原状态、验证不会转路径/重试风暴，再提供撤销。不默认 `rm -rf`，不竞速删除 `.enc`，不把同用户可解除的文件标志当作恶意进程隔离。
 
@@ -323,7 +323,7 @@ policy_changed
 
 不复制 `.enc` 大包。manifest 优先流式解析需要的字段；默认只保存类别计数、局部证据引用与短摘要。字节上限导致检查不完整时记录 `partial`，不得输出“无风险”。
 
-初版解析器只有经过测试的 ZCode schema；其他客户端必须提供合成 fixture、版本条件和字段出处后才加入。未知版本可报告“目录出现变化”，但高级语义进入 `unsupported_schema`，不猜字段。
+初版解析器只有经过测试的 某APP schema；其他客户端必须提供合成 fixture、版本条件和字段出处后才加入。未知版本可报告“目录出现变化”，但高级语义进入 `unsupported_schema`，不猜字段。
 
 ## 10. 通知与情绪价值
 
@@ -384,12 +384,12 @@ macOS 系统扩展需要原生组件，这是平台授权能力的成本，不�
 
 ## 12. CLI、Skill 与自动化契约
 
-所有命令均为拟定接口，正式发布前不提供假的包安装地址。
+本节命令和客户端标识均为历史设计示意，不是当前 CLI 用法；实际接口以已安装程序的 `--help` 为准。
 
 ```text
 laodi setup                         # 生成并执行经用户批准的接入计划
 laodi status --format agent-summary # 脱敏能力与健康状态
-laodi check --client zcode          # 有范围的只读检查
+laodi check --client <client-id>          # 有范围的只读检查
 laodi incidents --format agent-summary
 laodi doctor                       # 自检后端、权限、通知、规则版本
 laodi run -- <client> [args...]      # 原目录受限启动
@@ -411,12 +411,12 @@ Agent 默认只读接口返回：能力状态、证据类别计数、匿名 inci
 
 不需要 MCP server：已有 CLI 足够完成只读交互，减少常驻端口和攻击面。只有真实客户端无法调用 CLI 时才重新评估。
 
-## 13. 仓库结构
+## 13. 仓库结构（历史设计示意）
 
 以下是目标结构。本次设计交付只创建文档，不创建假实现、空 manifest 或可被误安装的 Skill。
 
 ```text
-Laodi-skills/
+Laodi/
 ├── README.md
 ├── LICENSE
 ├── SECURITY.md
@@ -436,7 +436,7 @@ Laodi-skills/
 │   ├── privacy/             # agent-summary 白名单序列化
 │   └── platform/            # watcher/service/probe/backend 契约
 ├── adapters/
-│   └── zcode/               # 编译进程序的有界解析器与 fixture
+│   └── client-a/               # 编译进程序的有界解析器与 fixture
 ├── backends/
 │   └── sandboxruntime/      # 固定版本的外部后端调用与探针
 ├── platform/macos/
@@ -507,7 +507,7 @@ Laodi-skills/
   "kind": "sensitive_manifest_match",
   "observed_at": "<actual-time>",
   "baseline_existing": false,
-  "sensor": {"id": "zcode_snapshot", "version": "parser-revision"},
+  "sensor": {"id": "client_a_snapshot", "version": "parser-revision"},
   "subject": {"app_id": "verified-or-unknown", "process_attribution": "unknown"},
   "facts": {"categories": ["git_objects"], "inspection": "completed"},
   "evidence_origin": "client_artifact",
@@ -577,7 +577,7 @@ Laodi-skills/
 
 ## 18. 证据与参考
 
-以下是底层能力依据，不等于 Laodi-skills 已完成实现或已通过安全审计。官方资料读取于 2026-09-18；实现必须绑定实际后端版本。
+以下是底层能力依据，不等于 Laodi 已完成实现或已通过安全审计。官方资料读取于 2026-09-18；实现必须绑定实际后端版本。
 
 - [S1 Agent Skills 规范](https://agentskills.io/specification)：Skill 可带脚本，不提供系统隔离。
 - [S2 Git repository layout](https://git-scm.com/docs/gitrepository-layout)、[git rev-parse](https://git-scm.com/docs/git-rev-parse)：gitfile/common-dir/路径解析。
@@ -590,6 +590,5 @@ Laodi-skills/
 - [S9 FSEvents 事件处理](https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/FSEvents_ProgGuide/UsingtheFSEventsFramework/UsingtheFSEventsFramework.html)：事件合并、丢失与重扫。
 - [S10 fsnotify](https://github.com/fsnotify/fsnotify)：Go 文件系统事件实现与平台差异。
 - [S11 Apple NEFilterSocketFlow.remoteHostname](https://developer.apple.com/documentation/networkextension/nefiltersocketflow/remotehostname)：主机名存在的条件，不能当通用 socket 的必有字段。
-- [ZCode 原始调查](https://blog.ferstar.org/posts/zcode-silent-workspace-snapshot-upload/)、[独立复查](https://vonng.com/ai/zcode-upload/)：事件动机与待实现 fixture 的线索，不直接作为所有版本的解析契约。
 
 Codex/其他宿主的 Hook manifest 和返回值尚需实现阶段读取当前官方文档并实测。本次部分官方页面打开失败，因此本文不固定未经完整核验的 Hook JSON，不把搜索摘要当成已实现接口。

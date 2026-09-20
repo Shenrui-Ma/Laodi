@@ -25,6 +25,7 @@ jobs:
         run: |
           make test
           make check
+          python3 scripts/dev/verify_public_docs.py
       - name: Build
         run: make build
       - name: Replay synthetic hooks

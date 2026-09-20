@@ -33,6 +33,9 @@ func updateTestExecutable(t *testing.T, installed bool) string {
 }
 
 func TestUpdateDownloadsOfficialBootstrapAndPreservesArguments(t *testing.T) {
+	if updateBootstrapURL != "https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh" {
+		t.Fatal("updater must target the renamed repository")
+	}
 	executable := updateTestExecutable(t, true)
 	state := filepath.Dir(filepath.Dir(executable))
 	var script string

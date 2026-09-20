@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Shenrui-Ma/Laodi-skills/internal/laodi"
+	"github.com/Shenrui-Ma/Laodi/internal/laodi"
 )
 
 func TestReleaseInstallCLIHasReadOnlyPreview(t *testing.T) {

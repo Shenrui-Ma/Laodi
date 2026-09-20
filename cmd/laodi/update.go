@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const updateBootstrapURL = "https://raw.githubusercontent.com/Shenrui-Ma/Laodi-skills/main/install.sh"
+const updateBootstrapURL = "https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh"
 const maxUpdateBootstrap = 1 << 20
 
 var updateTagPattern = regexp.MustCompile(`^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`)
@@ -61,7 +61,7 @@ func runUpdateWith(ctx context.Context, args []string, commands updateCommands) 
 		return errors.New("unexpected arguments or output format")
 	}
 	if *tag != "" && !validUpdateTag(*tag) {
-		return errors.New("use a release tag such as v0.3.0-preview.2")
+		return errors.New("use a release tag such as v0.4.1-beta.1")
 	}
 	if commands.platform != "darwin" {
 		return errors.New("release updates currently support macOS only")

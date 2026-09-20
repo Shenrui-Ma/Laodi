@@ -168,7 +168,7 @@ def latency_ms(event: dict | None, write_completed_ns: int) -> float | None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=20)
-    parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / "docs/spikes/s0-watcher-results.json")
+    parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / ".omx/experiments/s0-watcher-results.json")
     args = parser.parse_args()
     if args.samples < 20:
         parser.error("Use at least 20 complete-manifest samples")

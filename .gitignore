@@ -12,3 +12,11 @@ bin/
 *.db
 *.db-*
 *.jsonl
+
+# Keep experiment measurements and private reports out of published sources.
+/docs/spikes/
+/docs/BENCHMARKS.md
+**/*results*.json
+**/*results*.csv
+**/*measurements*.json
+**/*measurements*.csv

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Shenrui-Ma/Laodi-skills/internal/laodi"
+	"github.com/Shenrui-Ma/Laodi/internal/laodi"
 )
 
 // People investigating the public cases need existing evidence before installing

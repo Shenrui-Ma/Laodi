@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Shenrui-Ma/Laodi-skills/internal/laodi"
+	"github.com/Shenrui-Ma/Laodi/internal/laodi"
 )
 
 func runDistribution(action string, args []string) error {

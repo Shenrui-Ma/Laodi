@@ -8,7 +8,7 @@ on:
       version:
         description: 'Version tag for a build-only verification (no publication)'
         required: true
-        default: 'v0.4.0-preview.1'
+        default: 'v0.4.1-beta.1'
 
 permissions:
   contents: read
@@ -34,6 +34,7 @@ jobs:
         run: |
           make test
           make check
+          python3 scripts/dev/verify_public_docs.py
           python3 scripts/dev/verify_bootstrap.py --output /tmp/laodi-bootstrap-results.json
       - name: Build and verify universal preview
         env:
@@ -58,6 +59,7 @@ jobs:
         run: |
           make test
           make check
+          python3 scripts/dev/verify_public_docs.py
           python3 scripts/dev/verify_bootstrap.py --output /tmp/laodi-bootstrap-results.json
       - name: Build and verify universal package
         env:
@@ -76,9 +78,9 @@ jobs:
             prerelease_flags=(--prerelease --latest=false)
           fi
           gh release create "$RELEASE_TAG" \
-            "dist/$RELEASE_TAG/Laodi-skills-$RELEASE_TAG-macos-universal.zip" \
+            "dist/$RELEASE_TAG/Laodi-$RELEASE_TAG-macos-universal.zip" \
             "dist/$RELEASE_TAG/SHA256SUMS" \
             "dist/$RELEASE_TAG/build-info.json" \
-            --verify-tag --title "Laodi-skills $RELEASE_TAG" \
+            --verify-tag --title "Laodi $RELEASE_TAG" \
             --notes-file scripts/release/RELEASE-NOTES.md \
             "${prerelease_flags[@]}"

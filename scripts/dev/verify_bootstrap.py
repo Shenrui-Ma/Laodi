@@ -12,21 +12,22 @@ import zipfile
 
 
 REPO = Path(__file__).resolve().parents[2]
-TAG = "v0.4.0-preview.1"
+TAG = "v0.4.1-beta.1"
 SECRET = "BOOTSTRAP-PRIVATE-ENV-MUST-NOT-BE-PRINTED"
 
 
-def archive(path, extra=None, executable=True):
+def archive(path, extra=None, executable=True, package_root="Laodi"):
     entries = {
-        "Laodi-skills/laodi": (
+        "Laodi/laodi": (
             "#!/bin/sh\nprintf '%s\\0' \"$@\" > \"$LAODI_TEST_RESULT\"\n"
             "cat > \"$LAODI_TEST_STDIN\"\n"
             "exit \"${LAODI_TEST_INSTALL_EXIT:-0}\"\n",
             stat.S_IFREG | (0o755 if executable else 0o644),
         ),
-        "Laodi-skills/skills/laodi/SKILL.md": ("synthetic fixture\n", stat.S_IFREG | 0o644),
-        "Laodi-skills/LaodiNotify.app/Contents/Info.plist": ("fixture\n", stat.S_IFREG | 0o644),
+        "Laodi/skills/laodi/SKILL.md": ("synthetic fixture\n", stat.S_IFREG | 0o644),
+        "Laodi/LaodiNotify.app/Contents/Info.plist": ("fixture\n", stat.S_IFREG | 0o644),
     }
+    entries = {name.replace("Laodi/", package_root + "/", 1): value for name, value in entries.items()}
     if extra:
         entries.update(extra)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as output:
@@ -60,14 +61,14 @@ while [ "$#" -gt 0 ]; do
     --output) destination=$2; shift 2;;
     --proto|--proto-redir|--connect-timeout|--max-time|--retry|--max-filesize) shift 2;;
     -q|--fail|--silent|--show-error|--location) shift;;
-    https://github.com/Shenrui-Ma/Laodi-skills/releases/download/*) url=$1; shift;;
+    https://github.com/Shenrui-Ma/Laodi/releases/download/*) url=$1; shift;;
     *) exit 92;;
   esac
 done
 [ "${LAODI_TEST_CURL_FAIL:-0}" = 0 ] || exit 22
 case "$url" in
   */SHA256SUMS) cp "$LAODI_TEST_SUMS" "$destination";;
-  */Laodi-skills-*-macos-universal.zip) cp "$LAODI_TEST_ZIP" "$destination";;
+  */"$LAODI_TEST_ASSET") cp "$LAODI_TEST_ZIP" "$destination";;
   *) exit 93;;
 esac
 ''')
@@ -85,26 +86,26 @@ fi
         for forbidden in ("go", "node", "python", "python3", "sudo", "xattr", "spctl"):
             script(mock / forbidden, 'printf forbidden > "$LAODI_TEST_FORBIDDEN"\nexit 94\n')
 
-        def run(name, args=(), override=None, extra=None, sums=None, code=0, executed=True, executable=True, expected_args=None, extraction=None, script_stdin=None):
+        def run(name, args=(), override=None, extra=None, sums=None, code=0, executed=True, executable=True, expected_args=None, extraction=None, script_stdin=None, package_root="Laodi", package_name="Laodi"):
             case = root / name
             case.mkdir(mode=0o700)
             home, temp = case / "home", case / "temporary"
             home.mkdir(mode=0o700)
             temp.mkdir(mode=0o700)
             package, checksum = case / "package.zip", case / "SHA256SUMS"
-            archive(package, extra, executable)
+            archive(package, extra, executable, package_root)
             digest = hashlib.sha256(package.read_bytes()).hexdigest()
             tag = (override or {}).get("LAODI_VERSION", TAG)
             if args and args[0] == "--version":
                 tag = args[1]
             elif args and args[0].startswith("--version="):
                 tag = args[0].split("=", 1)[1]
-            asset = f"Laodi-skills-{tag}-macos-universal.zip"
+            asset = f"{package_name}-{tag}-macos-universal.zip"
             checksum.write_text(sums(digest, asset) if sums else f"{digest}  {asset}\n")
             result_path, downloads = case / "called", case / "downloads"
             env = {
                 "HOME": str(home), "TMPDIR": str(temp), "PATH": f"{mock}:/usr/bin:/bin", "LC_ALL": "C",
-                "LAODI_TEST_ZIP": str(package), "LAODI_TEST_SUMS": str(checksum),
+                "LAODI_TEST_ASSET": asset, "LAODI_TEST_ZIP": str(package), "LAODI_TEST_SUMS": str(checksum),
                 "LAODI_TEST_RESULT": str(result_path), "LAODI_TEST_DOWNLOADS": str(downloads),
                 "LAODI_TEST_STDIN": str(case / "installer-stdin"), "LAODI_TEST_EXTRACTED": str(case / "extracted"),
                 "LAODI_TEST_FORBIDDEN": str(case / "forbidden"), "PRIVATE_TEST_VALUE": SECRET,
@@ -139,6 +140,12 @@ fi
         run("version-argument", args=("--version", "v1.2.3-rc.4", "--dry-run"), expected_args=("--dry-run",))
         run("version-equals", args=("--version=v1.2.3", "--", "--dry-run"), expected_args=("--dry-run",))
         run("version-environment", override={"LAODI_VERSION": "v2.0.0"})
+        for legacy_tag in ("v0.3.0-preview.1", "v0.3.0-preview.2", "v0.4.0-preview.1"):
+            run("legacy-" + legacy_tag, args=("--version", legacy_tag, "--dry-run"),
+                expected_args=("--dry-run",), package_root="Laodi-skills", package_name="Laodi-skills")
+        run("wrong-new-root", package_root="Laodi-skills", code=1, executed=False, extraction=False)
+        run("wrong-legacy-root", args=("--version", "v0.4.0-preview.1"), package_name="Laodi-skills", code=1, executed=False, extraction=False)
+        run("mixed-package-roots", extra={"Laodi-skills/file": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False, extraction=False)
         run("archive-defaults", override={"UNZIP": "-j", "UNZIPOPT": "-j", "ZIPINFO": "-v", "ZIPINFOOPT": "-v"})
         run("installer-stdin-isolated", script_stdin=b"must not reach the installed binary\n")
         run("installer-fails", override={"LAODI_TEST_INSTALL_EXIT": "42"}, code=42)
@@ -147,16 +154,16 @@ fi
         run("duplicate-checksum", sums=lambda d, a: f"{d}  {a}\n{d}  {a}\n", code=1, executed=False)
         run("missing-checksum", sums=lambda d, a: f"{d}  another.zip\n", code=1, executed=False)
         run("invalid-checksum", sums=lambda d, a: f"{'g' * 64}  {a}\n", code=1, executed=False)
-        run("entry-budget", extra={f"Laodi-skills/file-{i}": ("", stat.S_IFREG | 0o644) for i in range(254)}, code=1, executed=False, extraction=False)
+        run("entry-budget", extra={f"Laodi/file-{i}": ("", stat.S_IFREG | 0o644) for i in range(254)}, code=1, executed=False, extraction=False)
         run("size-budget", override={"LAODI_TEST_REPORTED_SIZE": "134217729"}, code=1, executed=False, extraction=False)
         run("aggregate-size-budget", override={"LAODI_TEST_REPORTED_SIZE": "70000000"}, code=1, executed=False, extraction=False)
-        run("traversal", extra={"Laodi-skills/../../escaped": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False)
-        run("case-collision", extra={"Laodi-skills/LAODI": ("bad", stat.S_IFREG | 0o755)}, code=1, executed=False)
-        run("duplicate-normalized-path", extra={"Laodi-skills/skills/": ("", stat.S_IFDIR | 0o755), "Laodi-skills/skills": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False)
+        run("traversal", extra={"Laodi/../../escaped": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False)
+        run("case-collision", extra={"Laodi/LAODI": ("bad", stat.S_IFREG | 0o755)}, code=1, executed=False)
+        run("duplicate-normalized-path", extra={"Laodi/skills/": ("", stat.S_IFDIR | 0o755), "Laodi/skills": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False)
         run("absolute-path", extra={"/tmp/laodi-bootstrap-should-not-exist": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False)
-        run("symlink", extra={"Laodi-skills/link": ("/tmp", stat.S_IFLNK | 0o777)}, code=1, executed=False)
-        run("special-file", extra={"Laodi-skills/pipe": ("", stat.S_IFIFO | 0o600)}, code=1, executed=False)
-        run("newline-path", extra={"Laodi-skills/file\ninjected": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False)
+        run("symlink", extra={"Laodi/link": ("/tmp", stat.S_IFLNK | 0o777)}, code=1, executed=False)
+        run("special-file", extra={"Laodi/pipe": ("", stat.S_IFIFO | 0o600)}, code=1, executed=False)
+        run("newline-path", extra={"Laodi/file\ninjected": ("bad", stat.S_IFREG | 0o644)}, code=1, executed=False)
         run("non-executable", executable=False, code=1, executed=False)
         run("unsupported-os", override={"LAODI_TEST_OS": "Linux"}, code=1, executed=False)
         run("unsupported-arch", override={"LAODI_TEST_ARCH": "i386"}, code=1, executed=False)

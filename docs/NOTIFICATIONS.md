@@ -1,126 +1,99 @@
-# 通知与 Skill：低打扰接口
+# 提醒出现后怎么办
 
-本文件实现 [V1 产品约束](PRODUCT-V1.md)，记录已经提交的代码与仍待验证的能力。当前提供薄 Skill、macOS 无窗口 helper 源码和构建脚本；**源码构建通过不代表系统通知链路已经可用**。本轮不请求通知权限，不发送测试通知，不安装服务，不签名真实开发者身份。
+老底自动检测、保存脱敏事件并提交系统通知。已启用的归档限制由文件系统执行，不需要 Agent 在线或点击通知。默认监测不会拒绝工具调用；通知也不会自动触发 Agent、轮换密钥、关闭客户端或删除远端数据。
 
-本轮验证：clang `-Wall -Wextra -Werror` 构建成功；Clang Static Analyzer 无报告；`Info.plist` 通过 `plutil -lint`；构建脚本通过 `sh -n`。后续只读`--status`已返回not_determined/not_requested；尚未请求通知授权或测试送达。开发二进制大小不代表运行内存或发布包体积。
+## 当前通知原文
 
-## 产品行为
+下表对应通知 helper 的固定标题和正文，不是计划中的文案。通知不显示项目名、文件路径或密钥原值。
 
-1. Guardian 先持久化脱敏事件，再按重要性与去重策略决定通知；通知失败不丢事件。
-2. 调用短时运行的通知 helper。失败只更新通知通道状态，不影响监测循环与 Agent。
-3. 系统按用户许可、横幅设置、专注模式和其他通知偏好决定呈现。
-4. 用户随后可执行 `laodi incidents`，或在支持 Skill 的 Agent 中询问“老底刚才发现了什么”。
+| 类型 | 标题 | 正文 |
+| --- | --- | --- |
+| snapshot-history | 老底：发现含 Git 历史的快照线索 | 清单包含历史对象；是否上传成功尚未确认。当前任务继续运行。可在 Agent 中询问“查看老底提醒”。 |
+| upload-attempt | 老底：发现仓库上传尝试记录 | 客户端进入过上传尝试流程；是否发出请求或完成仍未知。当前任务继续运行。可在 Agent 中询问“查看老底提醒”。 |
+| upload-accepted | 老底：发现上传接受记录 | 客户端记录表明上传获确认；远端保存情况未经核验。当前任务继续运行。可在 Agent 中询问“查看老底提醒”。 |
+| snapshot-workspace | 老底：发现工作区快照清单 | 客户端生成了工作区文件清单；未读取文件内容，是否上传或包含秘密尚未知。当前任务继续运行。 |
+| workspace-upload-attempt | 老底：发现工作区快照上传尝试记录 | 客户端进入过相关快照的上传尝试流程；是否发出请求或完成仍未知。当前任务继续运行。 |
+| workspace-upload-accepted | 老底：发现工作区快照上传接受记录 | 客户端记录相关快照获HTTP成功响应；未据此确认包含Git历史或秘密，远端留存未知。当前任务继续运行。 |
+| snapshot-config | 老底：发现附加配置快照线索 | 附加清单列入了全局配置；未读取配置内容，是否包含秘密或完成上传尚未知。当前任务继续运行。 |
+| config-upload-attempt | 老底：发现附加配置上传尝试记录 | 客户端进入过相关快照的上传尝试流程；是否发出请求或完成仍未知。当前任务继续运行。 |
+| config-upload-accepted | 老底：发现附加配置上传接受记录 | 客户端记录相关快照获HTTP成功响应；具体配置内容与远端保存情况未经核验。当前任务继续运行。 |
+| tool-output-sensitive | 老底：工具输出出现疑似凭据 | 已在本机记录风险，提醒不包含具体内容；是否进入模型请求或完成上传尚未确认。当前任务继续运行。 |
+| hook-coverage-degraded | 老底：工具事件检测存在缺口 | 部分事件可能未被完整检查。当前任务继续运行。可在 Agent 中询问“检查老底状态”。 |
+| protection-coverage-degraded | 老底：归档限制需要检查 | 归档限制未通过健康检查，当前不应依赖它阻止额外快照。任务继续运行；请查看老底状态。此提醒不代表发生了上传。 |
+| coverage-degraded | 老底：部分监测暂不可用 | 已支持的监测范围出现缺口。当前任务继续运行。可在 Agent 中询问“检查老底状态”。 |
 
-不抢焦点，不要求用户确认后开发任务才能继续；不取消命令，不改变权限，不处理 Git，不改网络配置，不往正在运行的 Agent 会话注入提示词。无需主窗口、Web 管理界面、常驻菜单栏或模型服务。
+敏感文件的**访问请求默认只记录，不弹通知**；它不能证明读取已经完成。同一快照在一轮检查中优先显示证据最强的阶段；同类通知通常在 10 分钟内合并。首次安装已有记录和升级基线静默保留，不逐条弹窗。
 
-## Helper 实现与调用
+`--existing` 可给 helper 正文增加“安装前已有记录”前缀，不能将旧记录描述成刚刚上传。客户端 `attemptCount` 不是 HTTP 请求次数；“上传接受记录”也不证明远端长期留存、训练或公开。
 
-代码位于 `platform/macos/notifier/`。Objective-C + Foundation + UserNotifications，无第三方依赖，最低编译目标 macOS 12。打包为 `LSUIElement` 应用，不创建主窗口。`local.laodi.notify` 是开发身份；发布前须确定自有稳定的 bundle ID，之后避免因升级改变身份造成通知授权丢失。
+## 老底做了什么，还需要谁处理
 
-### 状态查询：没有授权请求
+| 情况 | 老底自动完成 | 用户或受委托 Agent 的下一步 |
+| --- | --- | --- |
+| 敏感访问请求 | 仅记下风险类别 | 若属于明确授权的任务可继续；不需要为了路径命中中断任务 |
+| 工具输出疑似凭据 | 脱敏记录、通知 | 核对任务是否本就使用合成值或凭据；若真实凭据可能暴露，到服务商撤销或轮换，不要把原值再贴给 Agent |
+| Git、工作区或配置快照 | 记录清单类别与状态 | 查 `incidents` 和 `protect status`；不希望产生额外归档时，按下面的限制流程处理 |
+| 上传尝试记录 | 保存尝试阶段，提醒 | 不等于实际发出请求；查保护是否启用。已经存在的其他上传路径不能靠这条通知自动阻断 |
+| 上传接受记录 | 保存客户端确认线索，提醒 | 本地记录先保留；需要远端删除或凭据处置时由用户操作相应服务。老底没有云端撤回能力 |
+| 工具或快照监测缺口 | 保留诊断、限频通知 | 查 `status`、`doctor`、`hooks status`。不要用 sudo、全盘权限或关闭代理作为默认修复 |
+| 归档限制需要检查 | 检查到健康状态异常，提醒 | 查 `protect status`；未知客户端不强行启用。需要恢复时等客户端正常退出再处理 |
+| 已启用的固定路径归档被权限拒绝 | 文件系统阻止相关操作 | 不需要 Agent 代为执行阻断。当前不记录逐次阻断计数，也没有“刚拦截一次”的通知；不能据 enabled 推算次数 |
 
-```text
-LaodiNotify.app/Contents/MacOS/LaodiNotify --status
+### 先查脱敏记录
+
+macOS 安装器不修改 PATH。以下命令可直接使用：
+
+```sh
+laodi_bin="$HOME/Library/Application Support/Laodi-skills/runtime/laodi"
+"$laodi_bin" incidents --format agent-summary
+"$laodi_bin" status --format agent-summary
+"$laodi_bin" protect status --format agent-summary
 ```
 
-这条命令只调用 `getNotificationSettingsWithCompletionHandler:`。常规 `status`/`doctor` 可以使用；不得自动退回 `--request-permission`。当前 CLI 若尚未接入 helper，就显示“通知尚未接入/未经验证”，不能用 `osascript` 可执行或 bundle 存在作为已授权的证据。
+想交给已接入老底 Skill 的 Agent，可以说：
 
-### 显式接入通知：可能显示一次系统权限对话框
+> 查看老底最近的脱敏提醒和保护状态，解释发生到了哪一步，并告诉我对应处理办法。不要读取密钥、源码或完整客户端日志，也不要中断当前任务。
 
-```text
-LaodiNotify.app/Contents/MacOS/LaodiNotify --request-permission
+Skill 查询同一个本地 CLI，不会从系统通知自动接收任务。没有 Skill 时，上面的终端命令也能查；无需购买额外模型服务。摘要有意不包含文件名和密钥，Agent 不能凭空指出具体哪个 key 泄露。
+
+### 想限制后续额外归档
+
+只适用于已核验客户端的固定路径。先让当前任务完成并正常退出客户端，再执行：
+
+```sh
+"$laodi_bin" protect enable
 ```
 
-这是唯一请求授权的代码路径。只请求普通 alert，不请求声音、角标、关键提醒、时间敏感提醒或任何系统扩展权限。用户同意并不保证横幅立即可见；拒绝则保留查询和本地记录功能，不重复请求、不替用户操作系统设置。
+然后照常打开客户端；以后由文件系统自动执行这组限制。它不能阻止此前的读取、普通模型请求、其他工具的自有缓存或内存上传。其他产品应先核实它的相关功能开关与路径，不能直接把当前保护适配器套过去。
 
-### 事件通知：不会自行请求授权
+状态为 `recovery_needed` 时，保持客户端退出后执行 `"$laodi_bin" protect disable`，恢复老底自己添加的权限。不要清空整个 ACL 或删除恢复记录。其他异常先按 [保护说明](PROTECTION.md) 判断；没有一条适用于所有异常的“强制修复”命令。
 
-```text
-LaodiNotify.app/Contents/MacOS/LaodiNotify --send --id opaque_incident_id --kind snapshot-history
+### 为什么没有横幅
+
+```sh
+"$laodi_bin" doctor --format agent-summary
+"$laodi_bin" hooks status
+"$HOME/Library/Application Support/Laodi-skills/runtime/LaodiNotify.app/Contents/MacOS/LaodiNotify" --status
 ```
 
-`--id` 为 1–64 位 ASCII 字母、数字、下划线或横线，必须由核心生成不含项目、路径或秘密的随机/不可逆事件标识；不要传可猜测路径的纯明文编码。不要把同一事件的每次轮询当作新的通知。相同 ID 再提交仍可能重新提醒，去重必须由 Guardian 完成。
+`doctor` 检查支持范围和目录，不修复配置，也不查询通知许可；后台是否存活看 `status`，通知设置看 helper。若 helper 返回 `denied`，到系统设置 → 通知 → 老底，开启允许通知及横幅。只有状态为 `not_determined` 且用户希望开启时，才使用 helper 的 `--request-permission` 请求一次授权。
 
-`--kind` 仅接受下列枚举。没有 `--title`、`--body`、任意 JSON payload 或打开任意命令的动作。
+`accepted_by_os` 表示系统接受通知请求，不等于用户看到了。专注模式、横幅设置和系统策略可能隐藏通知。缺失、拒绝、失败或超时都不能算成功显示；事件仍可通过 CLI 回查。守护进程完全停止后也不能依靠它自己发出停止提醒。
 
-| 枚举 | 使用条件 | 提醒含义 |
-|---|---|---|
-| `snapshot-history` | 已支持清单中明确有 Git 历史对象路径 | 本地快照线索，上传成功未知 |
-| `upload-attempt` | 当前版本已验证的字段确实表示尝试或重试 | 有上传尝试，不等于成功 |
-| `upload-accepted` | 已验证字段、清单关联及写入路径支持该含义 | 客户端接受记录，远端保存未经核验 |
-| `snapshot-workspace` | 非空普通工作区清单，未匹配Git历史对象 | 其他工作区快照；是否含秘密、是否获用户授权未知 |
-| `workspace-upload-attempt` | 对应普通清单的尝试字段为正 | 进入过尝试流程，不保证发出HTTP请求 |
-| `workspace-upload-accepted` | 接受hash与自己的普通清单匹配 | 普通快照的客户端HTTP成功记录，不谎称Git历史泄漏 |
-| `snapshot-config` | extra manifest的global-configs组有条目 | 附加配置被列入快照，内容/秘密与上传状态未知 |
-| `config-upload-attempt` | 对应extra hash的当前槽attemptCount为正 | 进入过尝试流程，不保证发出HTTP请求 |
-| `config-upload-accepted` | lastAcceptedExtraManifestHash与自己的extra清单匹配 | 客户端HTTP成功记录，不能推断具体配置内容/留存 |
-| `coverage-degraded` | 原先有效的监测停止、解析器失效等重要变化 | 监测存在缺口，不能据此宣称泄露 |
-| `tool-output-sensitive` | 支持的工具输出包含疑似凭据特征 | 输出有风险；不确认进入模型请求或上传成功 |
-| `hook-coverage-degraded` | 工具输出不完整、输入/队列异常等 | 部分工具事件可能未完整检查，任务继续 |
+当前已有一次真实客户端 Bash 风险事件及用户确认可见通知的验收；该用户在安装后手动开启了通知。它不证明首次安装一定能自动弹出权限申请，也不证明各系统配置下必然可见。
 
-`--existing` 在正文前加“安装前已有记录”。首次扫描不逐条刷屏，旧记录是否发一次汇总由 Guardian 负责。当前 helper 只负责提交单个通知，不完成去重、限速、扫描或事件存储。
+## 授权内与授权外
 
-普通无声音通知采用 active interruption level，可以按系统偏好呈现非模态横幅，不绕过 Focus。helper 不使用 critical/time-sensitive 提醒，不提供“点击后中止任务”或执行 shell 的按钮。点击行为仍须在正式包上验证；目前无需点击才能查看详情，通知正文说明了只读查询入口。
+- 指定文件并要求读取、修改，允许完成该任务所需的访问；只提及文件路径不自动授权全文上传。
+- 指定 Git 提交分析，允许必要的历史读取；普通 Git 内部对象访问不等于整库备份。
+- 给 key 用于服务 A 的认证，不自动允许回显或发送给服务 B。
+- 明确开启指定云备份，范围内的后台发送可以是授权内行为。
+- 缺少任务与设置证据时标为“待核实”；敏感路径、系统权限或后台发生本身都不足以认定擅自访问。
 
-### JSON 响应
+这是解释事件的规则。当前程序没有自动用户意图或授权分类器；授权内的敏感操作仍可能产生风险记录。
 
-每次正常 API 完成返回一行 JSON；异常返回固定错误码，不输出原始系统错误文本、目录或用户内容。示例：
+## 实现接口
 
-```json
-{
-  "schema_version": 1,
-  "action": "send",
-  "ok": true,
-  "authorization": "authorized",
-  "alert_setting": "enabled",
-  "notification_center_setting": "enabled",
-  "lock_screen_setting": "enabled",
-  "delivery": "accepted_by_os",
-  "task_interrupted": false
-}
-```
+通知由 `platform/macos/notifier/main.m` 提交给 UserNotifications。helper 支持 `--status`、`--request-permission`、`--send --id ... --kind ...`；没有自定义文案、任意命令或“一键中断”的动作按钮。查询与发送不会自行请求授权。检测器先持久化记录，再异步调用 helper；通知失败不阻塞检测循环。
 
-- `action`：`status`、`request-permission`、`send`；无效输入为 `invalid`。
-- `authorization`：`not_determined`、`denied`、`authorized`、`provisional`、`unknown`；API 未返回时字段缺省。
-- `*_setting`：`enabled`、`disabled`、`not_supported`、`unknown`。
-- `delivery`：`not_requested`、`not_available`、`accepted_by_os` 或 `unknown`。
-- `granted`：仅权限请求结果提供；拒绝是一个有效请求结果，需要结合该字段与 authorization 判断，不只看 `ok`。
-- `error_code`：固定错误类别，仅出错时出现。
-- 退出码：0 表示查询/请求正常完成；2 表示参数无效；3 表示不可用或服务失败。拒绝授权的请求可以正常完成并返回 0，不得将它视作已同意。
-
-`accepted_by_os` 只表示 UserNotifications 接受请求，**不是 delivered、shown 或 user_seen**。Focus 和其他系统策略仍可能影响呈现。提交超时显示 `unknown`，不能自动反复重发制造通知风暴。
-
-Guardian 应通过参数数组直接启动 helper，设置独立进程超时和有限输出大小，不经 shell 拼接内容。查询/发送 helper 内部 10 秒超时；显式权限请求 60 秒超时，超时只表示未知。子进程等待不能阻塞文件检测主循环；队列有界，失败使用退避。
-
-## Skill 的职责
-
-`skills/laodi/SKILL.md` 采用通用 Agent Skills 结构，不绑定单一模型厂商，不创建 Codex 插件清单。它只通过 `status/check/incidents/doctor --format agent-summary` 查询受约束摘要。
-
-它不通过模型推断一次上传是否成功，也不主动读取秘密或原始 Git 历史。仅当用户要求安装、开启提醒或处置时进入对应流程；查询失败不会自动提权。安装 Skill 不代表 Guardian 已运行，安装 Guardian 也不代表通知已授权。
-
-摘要的当前实现契约以 CLI 为准，后续版本应包含可判断覆盖状态的信息，至少区分：未安装、未运行、初始扫描未完成、支持范围有效、格式未知、目录不可读、通知通道不可用。它们都不是“没有风险”的同义词。
-
-## 必须执行但本轮不执行的验收
-
-| 场景 | 通过标准 |
-|---|---|
-| 全新包首次 `--status` | 无窗口、无权限弹窗、无通知；正确返回 not_determined |
-| 用户主动接入 | 仅一个系统通知授权请求；不要求 root/FDA/ES |
-| 用户拒绝 | 不重试授权；事件仍可回查；CLI 显示通知不可用 |
-| 已授权发送合成事件 | 横幅或通知中心按偏好显示固定脱敏文案；Agent 长任务照常完成 |
-| Focus / 横幅关闭 | 不能错误显示 user_seen；事件保留，不刷屏补发 |
-| 锁屏 | 不显示路径、项目名、秘密和任意源日志 |
-| 重复重试和旧记录 | Guardian 去重、限速和旧记录标记正确；状态升级才产生新提醒 |
-| helper 缺失、异常、卡住 | 检测持续运行，有界退避；状态准确降级 |
-| 长任务和 Git 对照 | 安装前后原命令退出码和成果一致，不引入阻断/重启 |
-| 包位置变化和升级 | 稳定身份和授权可验证；若授权失效则准确报告 |
-| 分发包 Gatekeeper 检查 | Developer ID、公证与实际安装流程通过；不把开发构建当分发成品 |
-
-普通用户通知能力不需要 Endpoint Security entitlement 或系统扩展。Developer ID 签名和公证属于后续正式分发的身份与可信安装问题；不能据此让用户现在为测试安装 root 服务或关闭 SIP。
-
-## 依据
-
-- [Apple：请求通知许可](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications)
-- [Apple：LSUIElement 无 Dock 界面的后台应用](https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement)
-- 本机 macOS SDK 的 `UNUserNotificationCenter.h`、`UNNotificationSettings.h`、`UNNotificationContent.h`：查询、授权与请求为独立 API；通知级别受系统设置控制。
-- [Agent Skills 规范](https://agentskills.io/specification)：通用 `SKILL.md` 和按需参考资料结构。
+[Apple 通知许可说明](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications) · [保护与恢复](PROTECTION.md) · [工具接入范围](TOOL-HOOKS.md)

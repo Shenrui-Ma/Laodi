@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Shenrui-Ma/Laodi-skills/internal/laodi"
+	"github.com/Shenrui-Ma/Laodi/internal/laodi"
 )
 
-var version = "0.4.0-dev"
+var version = "0.4.1-dev"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -40,7 +40,7 @@ func run(args []string) error {
 		return runHooks(args[1:])
 	}
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		fmt.Println("Laodi-skills — 本地隐私监测与可选的额外快照限制。\n\n发行包: install [--dry-run] | update [--dry-run] [--version TAG] | remove [--dry-run]\n命令: check | watch | status | incidents | doctor | setup | uninstall | hooks | protect | version\n保护: protect enable [--dry-run] | protect status | protect disable\n选项: --root PATH --state-dir PATH --app PATH --build BUILD --format text|json|agent-summary\nwatch: --interval 2s --duration 30s --notifier /path/to/helper [--hooks-only]\n工具适配: hooks install --adapter zcode|claude-code [--apply]；hooks status查看队列\nsetup/uninstall: 默认只预览，--apply 才注册/移除用户级服务（macOS，无需sudo）\n\n首次扫描只建立既有记录基线。查询不请求通知权限，不改变客户端设置。watch前台退出用 Ctrl-C。")
+		fmt.Println("Laodi — 本地隐私监测与可选的 Git 历史打包限制（BETA）。\n\n发行包: install [--dry-run] | update [--dry-run] [--version TAG] | remove [--dry-run]\n命令: check | watch | status | incidents | doctor | setup | uninstall | hooks | protect | version\n保护: protect enable [--dry-run] | protect status | protect disable\n选项: --root PATH --state-dir PATH --app PATH --build BUILD --format text|json|agent-summary\nwatch: --interval 2s --duration 30s --notifier /path/to/helper [--hooks-only]\n工具适配: hooks install --adapter zcode|claude-code [--apply]；hooks status查看队列\nsetup/uninstall: 默认只预览，--apply 才注册/移除用户级服务（macOS，无需sudo）\n\n首次扫描只建立既有记录基线。查询不请求通知权限，不改变客户端设置。watch前台退出用 Ctrl-C。")
 		return nil
 	}
 	if args[0] == "version" || args[0] == "--version" {

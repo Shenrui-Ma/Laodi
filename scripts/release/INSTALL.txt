@@ -1,4 +1,4 @@
-Laodi-skills — macOS 预览版
+Laodi — macOS 预览版
 
 适用于 macOS 13 或更新版本，Apple Silicon 与 Intel 使用同一个压缩包。
 无需安装 Go、Node.js 或 Python。无需 sudo。
@@ -7,7 +7,7 @@ Laodi-skills — macOS 预览版
 从本版起也可运行固定位置的 laodi update。
 更新保留配置和事件，仅短暂重启老底监测；失败回滚，不重启 Agent。
 
-1. 解压下载的 ZIP，把整个 Laodi-skills 文件夹保留在一起。
+1. 解压下载的 ZIP，把整个 Laodi 文件夹保留在一起。
 2. 双击 install.command，按终端中的说明完成接入。
    也可以在终端进入该文件夹执行：./laodi install
 3. 在解压目录查询状态：./laodi status
@@ -31,7 +31,7 @@ Skill 随包提供；安装器不会修改 PATH 或自动向客户端安装 Skil
 原生运行、系统通知与具体工具回调的验证范围以该 Release 说明为准。
 Intel 构建产物经过结构和签名检查，不代表已在 Intel 实机验证。
 
-项目：https://github.com/Shenrui-Ma/Laodi-skills
+项目：https://github.com/Shenrui-Ma/Laodi
 停止监测并移除老底接入：双击 uninstall.command，或在解压目录运行 ./laodi remove。
 这会移除自有 Hook 和后台服务，并保留本地记录与运行文件。
 更多用法：在解压目录运行 ./laodi --help，或查看仓库 README。
