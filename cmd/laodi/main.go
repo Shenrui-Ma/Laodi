@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -17,12 +18,25 @@ import (
 var version = "0.4.1-dev"
 
 func main() {
+	if handled, err := routeInstalled(os.Args[1:]); handled {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "laodi:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "laodi:", err)
 		os.Exit(1)
 	}
 }
 func run(args []string) error {
+	if runPlatformHookShell(args, os.Stdin) {
+		return nil
+	}
+	if handled, err := runPlatformNotifications(args); handled {
+		return err
+	}
 	if len(args) > 0 && args[0] == "protect" {
 		return runProtect(args[1:])
 	}
@@ -41,6 +55,9 @@ func run(args []string) error {
 	}
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		fmt.Println("Laodi — 本地隐私监测与可选的 Git 历史打包限制（BETA）。\n\n发行包: install [--dry-run] | update [--dry-run] [--version TAG] | remove [--dry-run]\n命令: check | watch | status | incidents | doctor | setup | uninstall | hooks | protect | version\n保护: protect enable [--dry-run] | protect status | protect disable\n选项: --root PATH --state-dir PATH --app PATH --build BUILD --format text|json|agent-summary\nwatch: --interval 2s --duration 30s --notifier /path/to/helper [--hooks-only]\n工具适配: hooks install --adapter zcode|claude-code [--apply]；hooks status查看队列\nsetup/uninstall: 默认只预览，--apply 才注册/移除用户级服务（macOS，无需sudo）\n\n首次扫描只建立既有记录基线。查询不请求通知权限，不改变客户端设置。watch前台退出用 Ctrl-C。")
+		if runtime.GOOS == "windows" {
+			fmt.Println("Windows 通知: notifications status|enable|disable|test-template|test-activation|test；test 显式发送一条合成通知，安装仅注册身份。")
+		}
 		return nil
 	}
 	if args[0] == "version" || args[0] == "--version" {
@@ -51,11 +68,15 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	defaultState, err := laodi.DefaultStateDir(home)
+	if err != nil {
+		return err
+	}
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
-	root := fs.String("root", filepath.Join(home, ".zcode", "v2", "checkpoints"), "ZCode证据目录；不会跟随manifest中的路径读取源码")
-	data := fs.String("state-dir", filepath.Join(home, "Library", "Application Support", "Laodi-skills"), "仅本工具状态目录")
-	app := fs.String("app", "/Applications/ZCode.app", "只读版本发现")
-	build := fs.String("build", "", "仅合成/已核对构建测试使用；默认读取应用CFBundleVersion")
+	root := fs.String("root", laodi.DefaultEvidenceRoot(home), "已核对的证据目录；不会跟随manifest中的路径读取源码")
+	data := fs.String("state-dir", defaultState, "仅本工具状态目录")
+	app := fs.String("app", laodi.DefaultClientApp(home), "只读版本发现")
+	build := fs.String("build", "", "仅合成/已核对构建测试使用；默认从公开应用元数据识别")
 	format := fs.String("format", "text", "text, json, agent-summary")
 	interval := fs.Duration("interval", 2*time.Second, "有界元数据检查间隔")
 	duration := fs.Duration("duration", 0, "0为前台持续运行")
@@ -74,9 +95,11 @@ func run(args []string) error {
 	if *format != "text" && *format != "json" && *format != "agent-summary" {
 		return fmt.Errorf("unknown format")
 	}
-	*root, err = filepath.Abs(*root)
-	if err != nil {
-		return err
+	if *root != "" {
+		*root, err = filepath.Abs(*root)
+		if err != nil {
+			return err
+		}
 	}
 	*data, err = filepath.Abs(*data)
 	if err != nil {
@@ -108,7 +131,7 @@ func run(args []string) error {
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
-		return laodi.Watch(ctx, scanner, laodi.WatchOptions{StateDir: *data, Interval: *interval, Duration: *duration, Notifier: *notifier, Output: os.Stdout, HooksOnly: *hooksOnly, ProtectionHome: home})
+		return laodi.Watch(ctx, scanner, laodi.WatchOptions{StateDir: *data, Interval: *interval, Duration: *duration, Notifier: *notifier, NotifierForEvent: platformNotifierProvider(*data, *notifier), Output: os.Stdout, HooksOnly: *hooksOnly, ProtectionHome: home})
 	case "status", "incidents":
 		st, e := laodi.LoadState(*data)
 		if e != nil {
@@ -145,7 +168,11 @@ func run(args []string) error {
 			if *format != "text" {
 				return json.NewEncoder(os.Stdout).Encode(plan)
 			}
-			fmt.Printf("预览 %s：用户级任务 %s\n配置：%s\n命令：%q\n尚未更改任何服务。只有显式 --apply 才执行。\n", args[0], plan.Label, plan.PlistPath, plan.Arguments)
+			configuration := plan.PlistPath
+			if runtime.GOOS == "windows" {
+				configuration = plan.Label
+			}
+			fmt.Printf("预览 %s：用户级任务 %s\n配置：%s\n命令：%q\n尚未更改任何服务。只有显式 --apply 才执行。\n", args[0], plan.Label, configuration, plan.Arguments)
 			return nil
 		}
 		if args[0] == "setup" {

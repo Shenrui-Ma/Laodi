@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,10 +14,12 @@ import (
 
 func privateStateDir(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	if err := os.Chmod(dir, 0700); err != nil {
+	dir := filepath.Join(t.TempDir(), "private")
+	root, err := openStateRoot(dir, true)
+	if err != nil {
 		t.Fatal(err)
 	}
+	root.Close()
 	return dir
 }
 
@@ -59,10 +60,7 @@ func TestStoreBaselineChangesAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, want := range map[string]os.FileMode{dir: 0700, filepath.Join(dir, stateFileName): 0600} {
-		info, err := os.Stat(name)
-		if err != nil || info.Mode().Perm() != want {
-			t.Fatalf("wrong private permissions on %s: %v, %v", name, info, err)
-		}
+		assertPrivateTestPath(t, name, want)
 	}
 	state, err = LoadState(dir)
 	if err != nil {
@@ -209,7 +207,7 @@ func TestStoreRejectsSymlinksAndUnsafePermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	alias := filepath.Join(t.TempDir(), "linked-state-dir")
-	if err := os.Symlink(target, alias); err != nil {
+	if err := createUnsafeTestLink(target, alias); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadState(alias); err == nil {
@@ -220,7 +218,7 @@ func TestStoreRejectsSymlinksAndUnsafePermissions(t *testing.T) {
 	}
 	dir := privateStateDir(t)
 	path := filepath.Join(dir, stateFileName)
-	if err := os.Symlink(filepath.Join(target, stateFileName), path); err != nil {
+	if err := createUnsafeTestLink(filepath.Join(target, stateFileName), path); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadState(dir); err == nil {
@@ -229,19 +227,21 @@ func TestStoreRejectsSymlinksAndUnsafePermissions(t *testing.T) {
 	if err := SaveState(dir, emptyState()); err == nil {
 		t.Fatal("replaced state file symlink")
 	}
-	if info, err := os.Lstat(path); err != nil || info.Mode()&os.ModeSymlink == 0 {
-		t.Fatal("symlink was changed")
+	assertUnsafeTestLink(t, path)
+	// Remove the test link before independently checking the original file ACL.
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
 	}
-	if err := os.Chmod(target, 0755); err != nil {
+	if err := setPrivateTestPermissions(target, 0755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadState(target); err == nil {
 		t.Fatal("accepted broadly readable state directory")
 	}
-	if err := os.Chmod(target, 0700); err != nil {
+	if err := setPrivateTestPermissions(target, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(filepath.Join(target, stateFileName), 0644); err != nil {
+	if err := setPrivateTestPermissions(filepath.Join(target, stateFileName), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadState(target); err == nil {
@@ -250,9 +250,6 @@ func TestStoreRejectsSymlinksAndUnsafePermissions(t *testing.T) {
 }
 
 func TestStateLockAcrossProcessesAndExit(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("background backend intentionally unsupported")
-	}
 	dir := privateStateDir(t)
 	release, err := AcquireLock(dir)
 	if err != nil {
@@ -272,13 +269,11 @@ func TestStateLockAcrossProcessesAndExit(t *testing.T) {
 		t.Fatalf("process exit left stale lock: %v", err)
 	}
 	releaseAgain()
-	if info, err := os.Stat(filepath.Join(dir, ".lock")); err != nil || info.Mode().Perm() != 0600 {
-		t.Fatal("lock file not retained privately")
-	}
+	assertPrivateTestPath(t, filepath.Join(dir, ".lock"), 0600)
 	if err := os.Remove(filepath.Join(dir, ".lock")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(filepath.Join(t.TempDir(), "elsewhere"), filepath.Join(dir, ".lock")); err != nil {
+	if err := createUnsafeTestLink(filepath.Join(t.TempDir(), "elsewhere"), filepath.Join(dir, ".lock")); err != nil {
 		t.Fatal(err)
 	}
 	if release, err := AcquireLock(dir); err == nil {
