@@ -4,6 +4,7 @@ package laodi
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -241,7 +242,7 @@ func TestWindowsStartupNativeShortcutRoundTrip(t *testing.T) {
 	if _, err := callWindowsStartup(p, "delete", serviceHash([]byte("wrong"))); err == nil {
 		t.Fatal("removed edited link")
 	}
-	t.Log("native WScript shortcut generated and exactly verified only inside an isolated temporary folder")
+	t.Log("native Unicode Shell shortcut generated and exactly verified only inside an isolated temporary folder")
 }
 func TestWindowsStartupNativeMonitorLifecycle(t *testing.T) {
 	exe := os.Getenv("LAODI_NATIVE_STARTUP_MONITOR_EXE")
@@ -437,15 +438,10 @@ func TestWindowsStartupNativeInheritedAdminDirectory(t *testing.T) {
 	p := windowsServiceFixture(t)
 	dir := t.TempDir()
 	p.startupDirectory = func() (string, error) { return dir, nil }
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	var before string
 	// Set only DACL information, matching setPrivateTestPermissions. Get-Acl /
 	// Set-Acl can also request owner/SACL privileges on otherwise ordinary users.
 	setStartupTestDACL(t, dir, "D:P(A;OICI;FA;;;"+p.UserSID+")(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)")
-	if err := runServicePowerShell(ctx, `(Get-Acl -LiteralPath `+psQuote(dir)+`).Sddl|ConvertTo-Json -Compress`, &before); err != nil {
-		t.Fatal(err)
-	}
+	before := startupTestDACL(t, dir)
 	root, err := openStateRoot(p.options.StateDir, true)
 	if err != nil {
 		t.Fatal(err)
@@ -464,10 +460,7 @@ func TestWindowsStartupNativeInheritedAdminDirectory(t *testing.T) {
 	if _, err := callWindowsStartup(p, "delete", link.Hash); err != nil {
 		t.Fatal(err)
 	}
-	var after string
-	if err := runServicePowerShell(ctx, `(Get-Acl -LiteralPath `+psQuote(dir)+`).Sddl|ConvertTo-Json -Compress`, &after); err != nil {
-		t.Fatal(err)
-	}
+	after := startupTestDACL(t, dir)
 	if before != after {
 		t.Fatal("Startup directory permissions changed")
 	}
@@ -514,5 +507,69 @@ func setStartupTestDACL(t *testing.T, path, sddl string) {
 	ok, _, callErr = fileAdvapi.NewProc("SetFileSecurityW").Call(uintptr(unsafe.Pointer(name)), 4|0x80000000, sd)
 	if ok == 0 {
 		t.Fatal(callErr)
+	}
+}
+
+// Compare the actual DACL bytes without importing PowerShell security modules.
+func startupTestDACL(t *testing.T, path string) string {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	var acl, descriptor *byte
+	result, _, _ := getFileSecurityInfo.Call(f.Fd(), 1, 4, 0, 0, uintptr(unsafe.Pointer(&acl)), 0, uintptr(unsafe.Pointer(&descriptor)))
+	if result != 0 {
+		t.Fatal(syscall.Errno(result))
+	}
+	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(descriptor))))
+	if acl == nil {
+		t.Fatal("missing fixture DACL")
+	}
+	size := *(*uint16)(unsafe.Add(unsafe.Pointer(acl), 2))
+	return hex.EncodeToString(unsafe.Slice(acl, int(size)))
+}
+
+func TestWindowsStartupNativePersistenceSpecialPaths(t *testing.T) {
+	target, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"ascii", "中文目录", "spaces ' & % ! $ (local)", "状态 ' & % ! $ (local)"} {
+		t.Run(name, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), name)
+			root, err := openStateRoot(dir, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			root.Close()
+			args := `watch --root "中文目录 ' & % ! $ (local)" --hooks-only`
+			// Same parent, target, and arguments for both persistence implementations.
+			// Native COM must succeed. The former WScript writer is diagnostic only.
+			path := filepath.Join(dir, ".startup-native.lnk")
+			if err := writeNativeWindowsShortcut(path, target, args); err != nil {
+				t.Fatal(err)
+			}
+			assertPrivateTestPath(t, path, 0600)
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			var diagnostic struct {
+				ParentVisible, SimpleWrite, Saved bool
+				ExceptionType                     string
+				HResult                           int64
+				PathLength                        int
+			}
+			oldPath := filepath.Join(dir, ".startup-legacy.lnk")
+			simple := filepath.Join(dir, "probe.tmp")
+			script := `$p=` + psQuote(oldPath) + `; $d=@{ParentVisible=[IO.Directory]::Exists([IO.Path]::GetDirectoryName($p));SimpleWrite=$false;Saved=$false;ExceptionType='';HResult=0;PathLength=$p.Length}; [IO.File]::WriteAllBytes(` + psQuote(simple) + `,[byte[]]@(1)); $d.SimpleWrite=[IO.File]::Exists(` + psQuote(simple) + `); [IO.File]::Delete(` + psQuote(simple) + `); try { $w=New-Object -ComObject WScript.Shell; $l=$w.CreateShortcut($p); $l.TargetPath=` + psQuote(target) + `; $l.Arguments=` + psQuote(args) + `; $l.WorkingDirectory=` + psQuote(filepath.Dir(target)) + `; $l.WindowStyle=7; $l.Save(); $d.Saved=[IO.File]::Exists($p) } catch { $e=$_.Exception; while($null -ne $e.InnerException){$e=$e.InnerException}; $d.ExceptionType=$e.GetType().FullName; $d.HResult=[long]$e.HResult }; $d|ConvertTo-Json -Compress`
+			if err := runServicePowerShell(ctx, script, &diagnostic); err != nil {
+				t.Fatal(err)
+			}
+			t.Logf("controlled WScript comparison (no original exception message): %+v", diagnostic)
+			if !diagnostic.ParentVisible || !diagnostic.SimpleWrite {
+				t.Fatal("PowerShell cannot access the same synthetic fixture")
+			}
+		})
 	}
 }

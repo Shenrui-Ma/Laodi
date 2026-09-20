@@ -222,25 +222,20 @@ func runWindowsStartup(ctx context.Context, op string, plan ServicePlan, hash st
 			return link, errors.New("Startup entry already exists; refusing overwrite")
 		}
 		// Generate the shortcut inside the private state directory. Publish its exact
-		// bytes with a no-clobber native move; WScript never writes the real Startup entry.
+		// bytes with a no-clobber native move; COM never writes the real Startup entry.
 		f, err := os.CreateTemp(plan.options.StateDir, ".startup-*.lnk")
 		if err != nil {
 			return link, err
 		}
 		temp := f.Name()
 		f.Close()
-		// CreateShortcut expects a missing file, not an empty placeholder.
+		// Native Shell persistence creates the temporary shortcut itself.
 		if err := os.Remove(temp); err != nil {
 			return link, err
 		}
 		defer os.Remove(temp)
-		var checked struct{ Target, Arguments string }
-		script := `$stage='shortcut_shell'; $w=New-Object -ComObject WScript.Shell; $stage='shortcut_create'; $l=$w.CreateShortcut(` + psQuote(temp) + `); $stage='shortcut_configure'; $l.TargetPath=` + psQuote(link.Target) + `; $l.Arguments=` + psQuote(link.Arguments) + `; $l.WorkingDirectory=` + psQuote(filepath.Dir(link.Target)) + `; $l.WindowStyle=7; $l.Description='Laodi user background monitoring'; $stage='shortcut_save'; $l.Save(); $stage='shortcut_verify'; $l=$w.CreateShortcut(` + psQuote(temp) + `); @{Target=[string]$l.TargetPath;Arguments=[string]$l.Arguments}|ConvertTo-Json -Compress`
-		if err := runServicePowerShell(ctx, script, &checked); err != nil {
+		if err := writeNativeWindowsShortcut(temp, link.Target, link.Arguments); err != nil {
 			return link, err
-		}
-		if !strings.EqualFold(filepath.Clean(checked.Target), filepath.Clean(link.Target)) || checked.Arguments != link.Arguments {
-			return link, errors.New("Startup shortcut round-trip differs from plan")
 		}
 		data, err = readServiceFile(temp)
 		if err != nil {

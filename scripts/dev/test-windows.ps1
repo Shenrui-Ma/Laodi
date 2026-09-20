@@ -47,6 +47,10 @@ try {
     if ($Race) { $testArguments += '-race' }
     & $Go @testArguments ./...
     if ($LASTEXITCODE -ne 0) { throw 'Native Windows tests failed.' }
+    # Retain bounded native/legacy persistence diagnostics for the regression
+    # that cannot be reproduced by a cross-compile on another OS.
+    & $Go @testArguments -run '^TestWindowsStartupNativePersistenceSpecialPaths$' -v ./internal/laodi
+    if ($LASTEXITCODE -ne 0) { throw 'Native shortcut persistence regression failed.' }
     & $Go vet ./...
     if ($LASTEXITCODE -ne 0) { throw 'Windows Go vet failed.' }
 } finally {
