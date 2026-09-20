@@ -4,14 +4,38 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
 	"github.com/Shenrui-Ma/Laodi/internal/laodi"
 )
 
+type windowsUpdateCommands struct {
+	download func(context.Context, string, string) (string, func(), error)
+	run      func(context.Context, string, ...string) error
+}
+
 func runWindowsUpdate(args []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	return runWindowsUpdateWith(ctx, args, windowsUpdateCommands{
+		download: laodi.DownloadWindowsRelease,
+		run:      runWindowsUpdateInstaller,
+	})
+}
+
+func runWindowsUpdateInstaller(ctx context.Context, executable string, args ...string) error {
+	cmd := exec.CommandContext(ctx, executable, args...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	// Nil stdin supplies EOF. The verified installer receives an argument array,
+	// never a shell command, and must finish before its download is removed.
+	return cmd.Run()
+}
+
+func runWindowsUpdateWith(ctx context.Context, args []string, commands windowsUpdateCommands) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	tag := fs.String("version", "", "official Windows release tag (required until the first verified Windows release)")
 	state := fs.String("state-dir", "", "existing Windows installation")
@@ -46,19 +70,22 @@ func runWindowsUpdate(args []string) error {
 			}
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	defer cancel()
-	source, cleanup, err := laodi.DownloadWindowsRelease(ctx, *tag, filepath.Join(*state, "downloads"))
+	source, cleanup, err := commands.download(ctx, *tag, filepath.Join(*state, "downloads"))
 	if err != nil {
 		return err
 	}
 	defer cleanup()
-	forward := []string{"--source-dir", source, "--state-dir", *state, "--format", *format}
+	forward := []string{"install", "--source-dir", source, "--state-dir", *state, "--format", *format}
 	if *dry {
 		forward = append(forward, "--dry-run")
 	}
 	if *noNotify {
 		forward = append(forward, "--no-notifications")
 	}
-	return runDistribution("install", forward)
+	// Use the downloaded version's installation logic, including fixes that the
+	// currently running version cannot know about.
+	if err := commands.run(ctx, filepath.Join(source, "laodi.exe"), forward...); err != nil {
+		return fmt.Errorf("update installer: %w", err)
+	}
+	return nil
 }

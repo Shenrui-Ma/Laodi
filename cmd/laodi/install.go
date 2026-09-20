@@ -69,23 +69,51 @@ func runDistribution(action string, args []string) error {
 			return outputErr
 		}
 	} else {
-		if action == "install" {
-			if result.Updated {
-				fmt.Println("老底程序已更新。")
-			}
-			fmt.Printf("老底 · 安装结果\n程序已复制到固定位置: %t\n已接入工具: %d\n后台服务已注册: %t\n通知状态: %s\n", result.RuntimeInstalled, len(result.HookAdapters), result.ServiceInstalled, distributionNotificationLabel(result.NotificationStatus))
-			if result.ServiceInstalled {
-				fmt.Println("当前Agent任务保持运行；工具事件接入请在下一次新会话验证。")
-			}
-			fmt.Printf("程序位置: %s\n可用命令: update、status、incidents、remove。\n", plan.Executable)
-		} else {
-			fmt.Println("老底 · 移除结果：仅处理自有接入，程序与历史记录保留。")
-		}
-		for _, warning := range result.Warnings {
-			fmt.Printf("提示: %s\n", warning)
-		}
+		printDistributionResult(action, plan, result, err)
 	}
 	return err
+}
+
+func printDistributionResult(action string, plan laodi.DistributionPlan, result laodi.DistributionResult, failure error) {
+	if action == "install" {
+		if failure != nil {
+			fmt.Println("老底 · 安装未完成")
+		} else if result.Updated {
+			fmt.Println("老底 · 更新结果")
+		} else {
+			fmt.Println("老底 · 安装结果")
+		}
+		serviceLabel := "后台服务已注册"
+		if runtime.GOOS == "windows" {
+			serviceLabel = "后台运行检查通过"
+		}
+		fmt.Printf("程序已复制到固定位置: %t\n已接入工具: %d\n%s: %t\n通知状态: %s\n", result.RuntimeInstalled, len(result.HookAdapters), serviceLabel, result.ServiceInstalled, distributionNotificationLabel(result.NotificationStatus))
+		switch result.BackgroundMode {
+		case "task_scheduler":
+			fmt.Println("后台启动方式：当前用户计划任务。")
+		case "user_startup":
+			fmt.Println("后台启动方式：当前用户登录启动。")
+			if result.BackgroundReason == "task_access_denied" {
+				fmt.Println("系统拒绝计划任务，已使用当前用户登录启动兼容方式。")
+			}
+		}
+		if !result.ServiceInstalled {
+			fmt.Println("后台监控未确认运行，不能将文件已安装视为监测已生效。")
+			if failure != nil && len(result.HookAdapters) == 0 {
+				fmt.Println("工具接入尚未完成；此处的 0 不表示已确认没有可用客户端。")
+			}
+		} else if len(result.HookAdapters) == 0 {
+			fmt.Println("后台已接入，但尚未接入编程工具；请核对受支持的客户端版本和接入设置。")
+		} else {
+			fmt.Println("当前Agent任务保持运行；工具事件接入请在下一次新会话验证。")
+		}
+		fmt.Printf("程序位置: %s\n可用命令: update、status、incidents、remove。\n", plan.Executable)
+	} else {
+		fmt.Println("老底 · 移除结果：仅处理自有接入，程序与历史记录保留。")
+	}
+	for _, warning := range result.Warnings {
+		fmt.Printf("提示: %s\n", warning)
+	}
 }
 
 func distributionNotificationLabel(status string) string {
@@ -100,6 +128,8 @@ func distributionNotificationLabel(status string) string {
 		return "尚未授权"
 	case "not_requested":
 		return "本次未请求授权"
+	case "not_configured":
+		return "尚未接入"
 	case "unknown":
 		return "暂未确认"
 	case "enabled":

@@ -60,6 +60,8 @@ type DistributionResult struct {
 	RuntimeInstalled   bool     `json:"runtime_installed"`
 	HookAdapters       []string `json:"hook_adapters"`
 	ServiceInstalled   bool     `json:"service_installed"`
+	BackgroundMode     string   `json:"background_mode,omitempty"`
+	BackgroundReason   string   `json:"background_reason,omitempty"`
 	NotificationStatus string   `json:"notification_status"`
 	Updated            bool     `json:"updated"`
 	Warnings           []string `json:"warnings,omitempty"`

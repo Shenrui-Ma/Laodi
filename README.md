@@ -56,7 +56,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | 
 在 PowerShell 中安装：
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.1/install.ps1').Content)) -Version 'v0.4.1-windows.beta.1'
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.2/install.ps1').Content)) -Version 'v0.4.1-windows.beta.2'
 ```
 
 安装后查询状态与提醒：
@@ -66,7 +66,7 @@ $Laodi = Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe'
 & $Laodi status
 & $Laodi incidents --format agent-summary
 & $Laodi notifications status
-& $Laodi update --version 'v0.4.1-windows.beta.1'
+& $Laodi update --version 'v0.4.1-windows.beta.2'
 ```
 
 Windows 端当前提供工具监测和通知，暂不提供 Git 历史打包限制。[Windows 使用说明](docs/WINDOWS.md)
