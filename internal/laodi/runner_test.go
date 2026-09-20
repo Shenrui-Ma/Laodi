@@ -312,11 +312,8 @@ func TestWatchSnapshotCapacityKeepsHooksAndKnownSnapshotsRunning(t *testing.T) {
 func TestWatchProtectionFailureNotifiesOnFirstRunAndRateLimitsRecurrence(t *testing.T) {
 	stateDir := filepath.Join(t.TempDir(), "state")
 	home, app := t.TempDir(), "/synthetic/not-a-real-client.app"
-	helper, calls := filepath.Join(t.TempDir(), "notice.sh"), filepath.Join(t.TempDir(), "calls")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '" + calls + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
-	if err := os.WriteFile(helper, []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
+	calls := filepath.Join(t.TempDir(), "calls")
+	helper := syntheticNotifier(t, calls, "append-args")
 	for index, status := range []string{"degraded", "enabled", "degraded"} {
 		checks := 0
 		opts := WatchOptions{StateDir: stateDir, Interval: time.Second,
@@ -371,11 +368,8 @@ func TestWatchWithoutProtectionHomeNeverInvokesChecker(t *testing.T) {
 
 func TestProtectionNoticeUsesWhitelistedArgumentsOnly(t *testing.T) {
 	dir := t.TempDir()
-	helper, calls := filepath.Join(dir, "notice.sh"), filepath.Join(dir, "calls")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" + calls + "'\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"
-	if err := os.WriteFile(helper, []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
+	calls := filepath.Join(dir, "calls")
+	helper := syntheticNotifier(t, calls, "args")
 	event := Event{ID: "opaque123", Kind: protectionHealthKind, Evidence: "PRIVATE_PATH", Unknowns: []string{"PRIVATE_ERROR"}}
 	if status := sendNotice(context.Background(), helper, event); status != "accepted_by_os" {
 		t.Fatal(status)
@@ -416,10 +410,7 @@ func TestProtectionAndSnapshotCoverageNoticesDoNotSupersedeEachOther(t *testing.
 	if err := SaveState(stateDir, state); err != nil {
 		t.Fatal(err)
 	}
-	helper := filepath.Join(t.TempDir(), "notice.sh")
-	if err := os.WriteFile(helper, []byte("#!/bin/sh\nprintf '{\"delivery\":\"accepted_by_os\"}'\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
+	helper := syntheticNotifier(t, filepath.Join(t.TempDir(), "calls"), "calls")
 	watchProtectionFixture(t, &Scanner{}, WatchOptions{StateDir: stateDir, Interval: time.Second, HooksOnly: true, Notifier: helper}, func(state State) bool {
 		return len(state.Events) == 2 && state.Events[0].Notification == "accepted_by_os" && state.Events[1].Notification == "accepted_by_os"
 	})
