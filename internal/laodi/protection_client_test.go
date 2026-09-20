@@ -15,6 +15,9 @@ import (
 
 func protectionClientTestDir(t *testing.T) string {
 	t.Helper()
+	if runtime.GOOS != "darwin" {
+		t.Skip("native application-bundle archive protection is macOS-only")
+	}
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -293,6 +296,9 @@ func TestProtectionFileRefusesConcurrentSymlinkReplacement(t *testing.T) {
 }
 
 func TestProtectionProcessParsingIsBoundedToClientExecutables(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("application-bundle process paths are specific to macOS protection")
+	}
 	const app = "/Applications/ZCode.app"
 	data := []byte(" 123 " + app + "/Contents/MacOS/ZCode\n" +
 		"45\t" + app + "/Contents/Frameworks/ZCode Helper.app/Contents/MacOS/ZCode Helper\n" +
