@@ -8,7 +8,7 @@
 
 | 类型 | 标题 | 正文 |
 | --- | --- | --- |
-| archive-blocked-test（macOS 主动自检） | 测试打包操作已拦截 | Git 历史打包保护正常。 |
+| archive-blocked-test（主动自检） | 测试打包操作已拦截 | Git 历史打包保护正常。 |
 | snapshot-history | 发现：Git 历史打包 | 某APP的打包清单包含 Git 历史，上传情况待确认。 |
 | upload-attempt | 发现：Git 历史上传尝试 | 某APP记录了 Git 历史上传尝试，结果待确认。 |
 | upload-accepted | 发现：Git 历史上传确认 | 某APP记录了 Git 历史上传成功，远端留存情况未知。 |
