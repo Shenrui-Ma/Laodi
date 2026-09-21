@@ -51,6 +51,8 @@ jobs:
           python3 scripts/dev/verify_public_docs.py
       - name: Build
         run: make build
+      - name: Verify native notification templates and app icon
+        run: sh platform/macos/notifier/test.sh
       - name: Replay synthetic hooks
         run: python3 scripts/dev/verify_tool_hooks.py --binary bin/laodi --output /tmp/laodi-hook-results.json
       - name: Verify command-line bootstrap

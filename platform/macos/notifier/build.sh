@@ -37,6 +37,8 @@ for notifier_size in 16 32 128 256 512; do
     --out "$notifier_iconset/icon_${notifier_size}x${notifier_size}@2x.png" >/dev/null
 done
 iconutil -c icns "$notifier_iconset" -o "$notifier_bundle/Contents/Resources/Laodi.icns"
+# Remove the obsolete attachment asset when rebuilding an existing output.
+rm -f "$notifier_bundle/Contents/Resources/LaodiNotification.png"
 cp "$notifier_root/Info.plist" "$notifier_bundle/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $notifier_version" "$notifier_bundle/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $notifier_version" "$notifier_bundle/Contents/Info.plist"

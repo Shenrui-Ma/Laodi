@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -14,11 +15,11 @@ import (
 
 func runProtect(args []string) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		fmt.Println("laodi protect enable [--dry-run]\nlaodi protect status [--format agent-summary]\nlaodi protect disable [--dry-run]\n限制已核验客户端的额外快照归档；首次启用和撤销需正常退出客户端。无需 sudo，不自动中断任务。")
+		fmt.Println("laodi protect enable [--dry-run]\nlaodi protect status [--format agent-summary]\nlaodi protect disable [--dry-run]\nlaodi protect test [--notify] [--format json]\n限制已核验客户端的额外快照归档；首次启用和撤销需正常退出客户端。无需 sudo，不自动中断任务。\ntest 使用临时测试数据检查打包保护；--notify 仅在自检通过后提醒，不表示客户端发生了上传。")
 		return nil
 	}
 	action := args[0]
-	if action != "enable" && action != "status" && action != "disable" {
+	if action != "enable" && action != "status" && action != "disable" && action != "test" {
 		return errors.New("unknown protection command")
 	}
 	fs := flag.NewFlagSet("protect "+action, flag.ContinueOnError)
@@ -26,6 +27,8 @@ func runProtect(args []string) error {
 	state := fs.String("state-dir", "", "老底状态目录")
 	dry := fs.Bool("dry-run", false, "仅检查，不改变目录权限")
 	format := fs.String("format", "text", "text, json or agent-summary")
+	notify := fs.Bool("notify", false, "自检确认拦截后发送测试通知")
+	notifier := fs.String("notifier", "", "测试通知helper；默认已安装的老底helper")
 	if err := fs.Parse(args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -34,6 +37,12 @@ func runProtect(args []string) error {
 	}
 	if fs.NArg() != 0 || (*format != "text" && *format != "json" && *format != "agent-summary") {
 		return errors.New("unexpected protection arguments")
+	}
+	if action == "test" && *dry || action != "test" && (*notify || *notifier != "") || *notifier != "" && !*notify {
+		return errors.New("test requires an actual probe; notification options require test --notify")
+	}
+	if *notifier != "" && (!filepath.IsAbs(*notifier) || filepath.Clean(*notifier) != *notifier) {
+		return errors.New("notification helper must be a clean absolute path")
 	}
 	if runtime.GOOS != "darwin" {
 		return errors.New("archive protection currently supports macOS only")
@@ -52,6 +61,36 @@ func runProtect(args []string) error {
 	*app, err = filepath.Abs(*app)
 	if err != nil {
 		return err
+	}
+	if action == "test" {
+		if *notifier == "" {
+			*notifier = filepath.Join(*state, "runtime", "LaodiNotify.app", "Contents", "MacOS", "LaodiNotify")
+		}
+		result, testErr := laodi.TestArchiveProtection(home, *state, *app)
+		delivery := "not_requested"
+		if testErr == nil && *notify {
+			delivery = laodi.NotifyArchiveProtectionTest(context.Background(), *notifier, result)
+		}
+		if *format != "text" {
+			if err := json.NewEncoder(os.Stdout).Encode(struct {
+				laodi.ArchiveProtectionTestResult
+				Notification string `json:"notification"`
+			}{result, delivery}); err != nil {
+				return err
+			}
+		} else if testErr == nil {
+			fmt.Println("老底 · 测试打包操作已拦截，Git 历史打包保护正常。")
+			if *notify {
+				fmt.Printf("通知状态: %s\n", delivery)
+			}
+		}
+		if testErr != nil {
+			return testErr
+		}
+		if *notify && delivery != "accepted_by_os" {
+			return errors.New("拦截自检通过，但通知未确认送达；请检查系统通知设置")
+		}
+		return nil
 	}
 	if action == "status" {
 		return printArchiveProtection(laodi.ReadArchiveProtectionSummary(home, *state, *app), *format)

@@ -236,7 +236,7 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 					continue
 				}
 				switch {
-				case ev.Kind == "sensitive_tool_access_requested":
+				case ev.Kind == "sensitive_tool_access_requested" || ev.Kind == protectionHealthKind:
 					saved.Notification = "recorded_only"
 				case !notifierConfigured:
 					saved.Notification = "not_configured"
@@ -306,13 +306,16 @@ func Watch(ctx context.Context, scanner *Scanner, opts WatchOptions) error {
 }
 
 func sendNotice(ctx context.Context, helper string, event Event) string {
+	if event.Kind == protectionHealthKind {
+		return "recorded_only"
+	}
 	kinds := map[string]string{
 		"sensitive_manifest_match": "snapshot-history", "upload_attempt_recorded": "upload-attempt", "upload_acceptance_recorded": "upload-accepted",
 		"workspace_snapshot_manifest": "snapshot-workspace", "workspace_snapshot_upload_attempt_recorded": "workspace-upload-attempt", "workspace_snapshot_upload_acceptance_recorded": "workspace-upload-accepted",
 		"global_config_manifest_match": "snapshot-config", "global_config_upload_attempt_recorded": "config-upload-attempt", "global_config_upload_acceptance_recorded": "config-upload-accepted",
 		"coverage_degraded": "coverage-degraded", "monitor_capacity_degraded": "coverage-degraded",
 		"sensitive_tool_output_detected": "tool-output-sensitive", "hook_coverage_degraded": "hook-coverage-degraded",
-		protectionHealthKind: "protection-coverage-degraded",
+		"archive_protection_test_passed": "archive-blocked-test",
 	}
 	kind, ok := kinds[event.Kind]
 	if !ok {

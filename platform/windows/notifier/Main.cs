@@ -154,19 +154,19 @@ internal static class Program {
         ValidateEventId(id);
         string title,body;
         switch(kind) {
-            case "test": title="老底：合成通知测试"; body="这是一条无真实凭据的本机测试提醒。系统接受通知不等于您已看到；请确认中文、图标和通知是否可见。"; break;
-            case "snapshot-history":title="老底：发现含 Git 历史的快照线索";body="清单包含历史对象；是否上传成功尚未确认。当前任务继续运行。";break;
-            case "upload-attempt":title="老底：发现仓库上传尝试记录";body="客户端进入过上传尝试流程；是否发出请求或完成仍未知。当前任务继续运行。";break;
-            case "upload-accepted":title="老底：发现上传接受记录";body="客户端记录表明上传获确认；远端保存情况未经核验。当前任务继续运行。";break;
-            case "snapshot-workspace":title="老底：发现工作区快照清单";body="客户端生成了文件清单；是否上传或包含秘密尚未知。当前任务继续运行。";break;
-            case "workspace-upload-attempt":title="老底：发现工作区快照上传尝试";body="客户端进入过相关快照的上传流程；是否发出请求或完成仍未知。当前任务继续运行。";break;
-            case "workspace-upload-accepted":title="老底：发现工作区快照接受记录";body="客户端记录相关快照获 HTTP 成功响应；未据此确认含有秘密或远端留存。当前任务继续运行。";break;
-            case "snapshot-config":title="老底：发现附加配置快照线索";body="附加清单列入全局配置；未读取其内容，是否包含秘密或完成上传尚未知。";break;
-            case "config-upload-attempt":title="老底：发现附加配置上传尝试";body="客户端进入过相关快照的上传流程；是否发出请求或完成仍未知。当前任务继续运行。";break;
-            case "config-upload-accepted":title="老底：发现附加配置接受记录";body="客户端记录相关快照获接受；具体内容及远端保存情况未经核验。当前任务继续运行。";break;
-            case "tool-output-sensitive":title="老底：工具输出出现疑似凭据";body="已在本机记录风险，提醒不包含具体内容；是否进入模型请求或完成上传尚未确认。当前任务继续运行。";break;
-            case "hook-coverage-degraded":title="老底：工具事件检测存在缺口";body="部分事件可能未被完整检查。当前任务继续运行。可在 Agent 中询问“检查老底状态”。";break;
-            case "coverage-degraded":title="老底：部分监测暂不可用";body="已支持范围出现缺口。当前任务继续运行。可在 Agent 中询问“检查老底状态”。";break;
+            case "test":title="老底：通知测试";body="这是一条测试通知。";break;
+            case "snapshot-history":title="发现：Git 历史打包";body="某APP的打包清单包含 Git 历史，上传情况待确认。";break;
+            case "upload-attempt":title="发现：Git 历史上传尝试";body="某APP记录了 Git 历史上传尝试，结果待确认。";break;
+            case "upload-accepted":title="发现：Git 历史上传确认";body="某APP记录了 Git 历史上传成功，远端留存情况未知。";break;
+            case "snapshot-workspace":title="发现：项目文件打包";body="某APP已生成项目文件的打包清单，上传情况待确认。";break;
+            case "workspace-upload-attempt":title="发现：项目文件上传尝试";body="某APP记录了项目文件上传尝试，结果待确认。";break;
+            case "workspace-upload-accepted":title="发现：项目文件上传确认";body="某APP记录了项目文件上传成功，远端留存情况未知。";break;
+            case "snapshot-config":title="发现：用户配置打包";body="某APP的打包清单包含用户配置，上传情况待确认。";break;
+            case "config-upload-attempt":title="发现：用户配置上传尝试";body="某APP记录了用户配置上传尝试，结果待确认。";break;
+            case "config-upload-accepted":title="发现：用户配置上传确认";body="某APP记录了用户配置上传成功，远端留存情况未知。";break;
+            case "tool-output-sensitive":title="发现：疑似密钥输出";body="工具返回的内容包含疑似密钥，是否发送给模型未知。";break;
+            case "hook-coverage-degraded":title="发现：工具监测不完整";body="部分工具事件可能未被完整检查。";break;
+            case "coverage-degraded":title="发现：部分监测不可用";body="部分已接入来源暂时无法正常监测。";break;
             default:throw new ArgumentException("unsupported_notice_kind");
         }
         string logo=StableLogo;

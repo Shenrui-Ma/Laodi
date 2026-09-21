@@ -309,7 +309,7 @@ func TestWatchSnapshotCapacityKeepsHooksAndKnownSnapshotsRunning(t *testing.T) {
 	}
 }
 
-func TestWatchProtectionFailureNotifiesOnFirstRunAndRateLimitsRecurrence(t *testing.T) {
+func TestWatchProtectionFailureRecordsWithoutNotification(t *testing.T) {
 	stateDir := filepath.Join(t.TempDir(), "state")
 	home, app := t.TempDir(), "/synthetic/not-a-real-client.app"
 	calls := filepath.Join(t.TempDir(), "calls")
@@ -329,11 +329,11 @@ func TestWatchProtectionFailureNotifiesOnFirstRunAndRateLimitsRecurrence(t *test
 		watchProtectionFixture(t, &Scanner{App: app}, opts, func(state State) bool {
 			switch index {
 			case 0:
-				return len(state.Events) == 1 && state.Events[0].Notification == "accepted_by_os"
+				return len(state.Events) == 1 && state.Events[0].Notification == "recorded_only"
 			case 1:
 				return state.Initialized && len(state.Diagnostics) == 0
 			default:
-				return len(state.Events) == 2 && state.Events[1].Notification == "aggregated"
+				return len(state.Events) == 2 && state.Events[1].Notification == "recorded_only"
 			}
 		})
 		if checks != 1 {
@@ -344,12 +344,11 @@ func TestWatchProtectionFailureNotifiesOnFirstRunAndRateLimitsRecurrence(t *test
 	if err != nil || len(state.Events) != 2 {
 		t.Fatalf("wrong guard episodes: %+v %v", state.Events, err)
 	}
-	if state.Events[0].BaselineExisting || state.Events[0].Notification != "accepted_by_os" || state.Events[1].Notification != "aggregated" {
+	if state.Events[0].BaselineExisting || state.Events[0].Notification != "recorded_only" || state.Events[1].Notification != "recorded_only" {
 		t.Fatalf("baseline or rate-limit failure: %+v", state.Events)
 	}
-	data, err := os.ReadFile(calls)
-	if err != nil || strings.Count(string(data), "protection-coverage-degraded") != 1 {
-		t.Fatalf("guard notification repeated: %q %v", data, err)
+	if _, err := os.Stat(calls); !os.IsNotExist(err) {
+		t.Fatal("record-only protection failure invoked notifier")
 	}
 }
 
@@ -366,31 +365,19 @@ func TestWatchWithoutProtectionHomeNeverInvokesChecker(t *testing.T) {
 	}
 }
 
-func TestProtectionNoticeUsesWhitelistedArgumentsOnly(t *testing.T) {
+func TestProtectionNoticeIsSuppressedEvenWhenCalledDirectly(t *testing.T) {
 	dir := t.TempDir()
 	calls := filepath.Join(dir, "calls")
 	helper := syntheticNotifier(t, calls, "args")
-	event := Event{ID: "opaque123", Kind: protectionHealthKind, Evidence: "PRIVATE_PATH", Unknowns: []string{"PRIVATE_ERROR"}}
-	if status := sendNotice(context.Background(), helper, event); status != "accepted_by_os" {
-		t.Fatal(status)
-	}
-	data, err := os.ReadFile(calls)
-	if err != nil || string(data) != "--send\n--id\nopaque123\n--kind\nprotection-coverage-degraded\n" {
-		t.Fatalf("unexpected notice arguments: %q %v", data, err)
-	}
-	if err := os.Remove(calls); err != nil {
-		t.Fatal(err)
-	}
-	event.Kind = "protection_coverage_degraded;PRIVATE"
-	if status := sendNotice(context.Background(), helper, event); status != "unsupported_notice_kind" {
-		t.Fatal(status)
+	if got := sendNotice(context.Background(), helper, Event{ID: "opaque123", Kind: protectionHealthKind}); got != "recorded_only" {
+		t.Fatal(got)
 	}
 	if _, err := os.Stat(calls); !os.IsNotExist(err) {
-		t.Fatal("unrecognized kind invoked helper")
+		t.Fatal("disabled notice invoked helper")
 	}
 	source, err := os.ReadFile(filepath.Join("..", "..", "platform", "macos", "notifier", "main.m"))
-	if err != nil || !strings.Contains(string(source), `@"protection-coverage-degraded": @[@"老底：归档限制需要检查"`) || !strings.Contains(string(source), "此提醒不代表发生了上传。") {
-		t.Fatalf("native helper is missing the fixed, non-upload template: %v", err)
+	if err != nil || strings.Contains(string(source), `@"protection-coverage-degraded"`) {
+		t.Fatal("disabled notification template remains")
 	}
 }
 
@@ -412,14 +399,18 @@ func TestProtectionAndSnapshotCoverageNoticesDoNotSupersedeEachOther(t *testing.
 	}
 	helper := syntheticNotifier(t, filepath.Join(t.TempDir(), "calls"), "calls")
 	watchProtectionFixture(t, &Scanner{}, WatchOptions{StateDir: stateDir, Interval: time.Second, HooksOnly: true, Notifier: helper}, func(state State) bool {
-		return len(state.Events) == 2 && state.Events[0].Notification == "accepted_by_os" && state.Events[1].Notification == "accepted_by_os"
+		return len(state.Events) == 2 && state.Events[0].Notification == "accepted_by_os" && state.Events[1].Notification == "recorded_only"
 	})
 	state, err := LoadState(stateDir)
 	if err != nil || len(state.Events) != 2 {
 		t.Fatalf("missing health events: %+v %v", state.Events, err)
 	}
 	for _, event := range state.Events {
-		if event.Notification != "accepted_by_os" {
+		want := "accepted_by_os"
+		if event.Kind == protectionHealthKind {
+			want = "recorded_only"
+		}
+		if event.Notification != want {
 			t.Fatalf("health event superseded another independent sensor: %+v", event)
 		}
 	}

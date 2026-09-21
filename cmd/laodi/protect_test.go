@@ -14,6 +14,9 @@ func TestProtectRejectsAmbiguousCommands(t *testing.T) {
 	for _, args := range [][]string{
 		{"protect", "launch"}, {"protect", "enable", "extra"},
 		{"protect", "status", "--format", "raw"}, {"protect", "disable", "--force"},
+		{"protect", "test", "--dry-run"}, {"protect", "status", "--notify"},
+		{"protect", "test", "--notifier", "/unused/helper"},
+		{"protect", "test", "--notify", "--notifier", "relative/helper"},
 	} {
 		if err := run(args); err == nil {
 			t.Fatalf("accepted %v", args)
