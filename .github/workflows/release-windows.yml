@@ -6,7 +6,7 @@ on:
       version:
         description: 'Version for a Windows build-only candidate; never publishes a GitHub release'
         required: true
-        default: 'v0.4.1-windows.beta.3'
+        default: 'v0.4.1-windows.beta.4'
 
 permissions:
   contents: read

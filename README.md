@@ -56,7 +56,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | 
 安装最新版（PowerShell）：
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.ps1').Content)) -Version 'v0.4.1-windows.beta.3'
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.ps1').Content)) -Version 'v0.4.1-windows.beta.4'
 ```
 
 更新最新版：
@@ -113,6 +113,8 @@ Skill 随包提供，方便 Agent 查询；不影响后台独立运行。
 之后照常打开客户端。`protect status` 查看状态，`protect disable` 撤销；撤销前同样需退出客户端。
 
 仅限制适配版本的归档路径，不阻止文件读取或普通模型请求。[支持范围与恢复](docs/PROTECTION.md)
+
+Windows 端的适配构建与命令见[打包保护说明](docs/PROTECTION.md#windows-使用)。
 
 ## 实测
 

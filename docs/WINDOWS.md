@@ -2,9 +2,9 @@
 
 ## 发布状态
 
-当前提供 Windows 11 x64 BETA：`v0.4.1-windows.beta.3`。它使用独立 Windows 安装包，macOS ZIP 不能用于 Windows。BETA 不代表所有交互与长时间运行验收均已完成。
+当前提供 Windows 11 x64 BETA：`v0.4.1-windows.beta.4`。它使用独立 Windows 安装包，macOS ZIP 不能用于 Windows。BETA 不代表所有交互与长时间运行验收均已完成。
 
-已有实现包括本地工具事件监测、当前用户后台任务、安装更新、脱敏记录与通知管理。Windows 默认接收工具事件；新代码提供限已核验旧构建的可选 Git 历史打包限制，需用户主动启用。真实快照上传检测仍未接通，不能将保护状态当作上传事件记录。[支持范围与操作](PROTECTION.md#windows-使用)
+已有实现包括本地工具事件监测、当前用户后台任务、安装更新、脱敏记录与通知管理。Windows 默认接收工具事件；beta.4 提供限已核验旧构建的可选 Git 历史打包限制，需用户主动启用。真实快照上传检测仍未接通，不能将保护状态当作上传事件记录。[支持范围与操作](PROTECTION.md#windows-使用)
 
 开发验证以 Windows 11 x64、本地 NTFS 为目标。其他 Windows 版本、ARM64、WSL、不同文件系统及系统策略需分别验证。安装在普通用户 PowerShell 中进行，不需要管理员权限，不修改系统执行策略或安全防护。
 
@@ -13,7 +13,7 @@
 在普通 PowerShell 中执行：
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.ps1').Content)) -Version 'v0.4.1-windows.beta.3'
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.ps1').Content)) -Version 'v0.4.1-windows.beta.4'
 ```
 
 脚本从对应 Release 下载 Windows 包并校验 ZIP 与包内文件。不修改 PATH，默认安装到当前用户目录。更新保留配置与记录。
@@ -81,10 +81,10 @@ beta.3 起，可直接更新到 Windows 推荐版本：
 
 推荐通道独立于 macOS Release。可先运行 `& $Laodi update --dry-run` 查看更新计划。
 
-从 beta.2 升级到 beta.3，首次仍需指定版本：
+从 beta.2 升级到最新版，首次仍需指定版本：
 
 ```powershell
-& $Laodi update --version 'v0.4.1-windows.beta.3'
+& $Laodi update --version 'v0.4.1-windows.beta.4'
 ```
 
 如果旧版安装未完成，重新运行上面的命令行安装入口。指定 `--version` 仍可选择其他 Windows 版本；不要使用 macOS 标签。本地候选包仍可用前述安装方式更新。[更新通道说明](windows-update-channel.md)
