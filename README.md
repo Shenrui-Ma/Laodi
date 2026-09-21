@@ -1,7 +1,12 @@
 <p align="center">
   <img src="assets/laodi-logo.png" width="180" alt="Laodi 老底标志">
 </p>
-<h1 align="center">Laodi · 老底</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/laodi-title-dark.svg">
+    <img src="assets/laodi-title-light.svg" width="420" height="82" alt="Laodi · 老底">
+  </picture>
+</h1>
 
 <p>
   <img src="assets/chat-demo.png" width="350" align="left" alt="聊天记录截图">

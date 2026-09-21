@@ -6,4 +6,6 @@
 
 - `notification-preview.png`：项目发起者提供的 macOS 通知截图，用于展示提醒样式。
 
+- `laodi-title-light.svg`、`laodi-title-dark.svg`：放大的标题文字，分别用于浅色和深色主题。
+
 根目录MIT许可证适用于项目原创代码和文档；PNG宣传素材及其转换生成的图标不自动纳入该许可证。本项目不代表角色权利人，也不与所适配的Agent厂商关联。
