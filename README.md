@@ -9,7 +9,7 @@
 </h1>
 
 <p>
-  <img src="assets/chat-demo.png" width="350" align="left" alt="聊天记录截图">
+  <img src="assets/chat-demo-iphone.png" width="357" align="left" alt="iPhone 外框聊天记录截图">
 </p>
 
 <h3>担心自己的 Git 历史被第三方工具悄悄上传？</h3>
