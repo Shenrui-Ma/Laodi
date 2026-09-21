@@ -37,7 +37,7 @@ func TestProtectStatusDoesNotCreateStateOrExposePaths(t *testing.T) {
 	defer func() { os.Stdout = previous }()
 	err = run([]string{"protect", "status", "--state-dir", state, "--format", "agent-summary"})
 	os.Stdout = previous
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 		if err == nil || !strings.Contains(err.Error(), "supports macOS only") || strings.Contains(err.Error(), "PRIVATE") {
 			t.Fatalf("unsupported platform protection not reported safely: %v", err)
 		}

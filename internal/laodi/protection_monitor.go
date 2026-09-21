@@ -3,6 +3,7 @@ package laodi
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -15,7 +16,7 @@ const (
 type protectionHealthChecker func(home, stateDir, app string) ProtectionSummary
 
 // This is deliberately opt-in: synthetic scans and hook-only installations
-// without a client path must never inspect the current user's real home.
+// without a client path inspect only an explicitly enabled protection receipt.
 type protectionMonitor struct {
 	home, stateDir, app string
 	check               protectionHealthChecker
@@ -24,7 +25,10 @@ type protectionMonitor struct {
 }
 
 func newProtectionMonitor(home, stateDir, app string, check protectionHealthChecker) *protectionMonitor {
-	if home == "" || app == "" {
+	// A Windows hook-only watcher discovers only its own opt-in receipt. Keep
+	// checking even when protection is enabled after this watcher has started.
+	discover := runtime.GOOS == "windows" && filepath.IsAbs(home) && filepath.IsAbs(stateDir) && app == "" && check == nil
+	if home == "" || app == "" && !discover {
 		return nil
 	}
 	if check == nil {
@@ -33,6 +37,9 @@ func newProtectionMonitor(home, stateDir, app string, check protectionHealthChec
 			return err == nil
 		}}
 		check = func(home, stateDir, app string) ProtectionSummary {
+			if discover {
+				app = protectionRecordedApp(home, stateDir)
+			}
 			return readArchiveProtectionSummary(home, stateDir, app, verifier.verify)
 		}
 	}
@@ -75,10 +82,11 @@ func isProtectionHealthFinding(finding Finding) bool {
 
 type protectionBundleStamp struct {
 	plist, archive os.FileInfo
+	extra          os.FileInfo
 }
 
 func (stamp protectionBundleStamp) matches(other protectionBundleStamp) bool {
-	return sameProtectionFileStamp(stamp.plist, other.plist) && sameProtectionFileStamp(stamp.archive, other.archive)
+	return sameProtectionFileStamp(stamp.plist, other.plist) && sameProtectionFileStamp(stamp.archive, other.archive) && (stamp.extra == nil && other.extra == nil || sameProtectionFileStamp(stamp.extra, other.extra))
 }
 
 func sameProtectionFileStamp(before, after os.FileInfo) bool {
@@ -120,6 +128,9 @@ func (verifier *protectionBundleVerifier) verify(app string) bool {
 
 func readProtectionBundleStamp(app string) (protectionBundleStamp, bool) {
 	paths := []string{filepath.Join(app, "Contents", "Info.plist"), filepath.Join(app, "Contents", "Resources", "app.asar")}
+	if runtime.GOOS == "windows" {
+		paths = []string{app, filepath.Join(filepath.Dir(app), "resources", "app.asar"), filepath.Join(filepath.Dir(app), "resources", "glm", "zcode.cjs")}
+	}
 	files := make([]os.FileInfo, len(paths))
 	for i, path := range paths {
 		if err := checkProtectionPath(path, false, false); err != nil {
@@ -131,5 +142,9 @@ func readProtectionBundleStamp(app string) (protectionBundleStamp, bool) {
 		}
 		files[i] = info
 	}
-	return protectionBundleStamp{plist: files[0], archive: files[1]}, true
+	stamp := protectionBundleStamp{plist: files[0], archive: files[1]}
+	if len(files) > 2 {
+		stamp.extra = files[2]
+	}
+	return stamp, true
 }

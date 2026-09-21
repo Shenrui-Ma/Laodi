@@ -729,6 +729,11 @@ func uninstallWindowsDistribution(p DistributionPlan) (DistributionResult, error
 		return r, err
 	}
 	defer unlock()
+	guardUnlock, err := lockArchiveGuardForRemoval(p.StateDir)
+	if err != nil {
+		return r, err
+	}
+	defer guardUnlock()
 	p.options.Remove = true
 	p.Adapters = nil
 	p.WindowsClients = nil

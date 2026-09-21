@@ -29,6 +29,9 @@ func SummarizeArchiveGuard(s ArchiveGuardStatus) ProtectionSummary {
 }
 
 func ReadArchiveProtectionSummary(home, stateDir, app string) ProtectionSummary {
+	if app == "" {
+		app = protectionRecordedApp(home, stateDir)
+	}
 	return readArchiveProtectionSummary(home, stateDir, app, func(app string) bool {
 		_, _, err := inspectProtectionBundle(app)
 		return err == nil

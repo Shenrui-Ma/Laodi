@@ -23,7 +23,11 @@ func runProtect(args []string) error {
 		return errors.New("unknown protection command")
 	}
 	fs := flag.NewFlagSet("protect "+action, flag.ContinueOnError)
-	app := fs.String("app", "/Applications/ZCode.app", "已核验客户端路径")
+	defaultApp := "/Applications/ZCode.app"
+	if runtime.GOOS == "windows" {
+		defaultApp = ""
+	}
+	app := fs.String("app", defaultApp, "已核验客户端路径")
 	state := fs.String("state-dir", "", "老底状态目录")
 	dry := fs.Bool("dry-run", false, "仅检查，不改变目录权限")
 	format := fs.String("format", "text", "text, json or agent-summary")
@@ -44,7 +48,7 @@ func runProtect(args []string) error {
 	if *notifier != "" && (!filepath.IsAbs(*notifier) || filepath.Clean(*notifier) != *notifier) {
 		return errors.New("notification helper must be a clean absolute path")
 	}
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
 		return errors.New("archive protection currently supports macOS only")
 	}
 	home, err := os.UserHomeDir()
@@ -52,19 +56,28 @@ func runProtect(args []string) error {
 		return err
 	}
 	if *state == "" {
-		*state = filepath.Join(home, "Library/Application Support/Laodi-skills")
+		*state, err = laodi.DefaultStateDir(home)
+		if err != nil {
+			return err
+		}
 	}
 	*state, err = filepath.Abs(*state)
 	if err != nil {
 		return err
 	}
-	*app, err = filepath.Abs(*app)
+	if *app != "" {
+		*app, err = filepath.Abs(*app)
+	}
 	if err != nil {
 		return err
 	}
 	if action == "test" {
 		if *notifier == "" {
-			*notifier = filepath.Join(*state, "runtime", "LaodiNotify.app", "Contents", "MacOS", "LaodiNotify")
+			if runtime.GOOS == "windows" {
+				*notifier = laodiConfiguredProtectionNotifier(*state)
+			} else {
+				*notifier = filepath.Join(*state, "runtime", "LaodiNotify.app", "Contents", "MacOS", "LaodiNotify")
+			}
 		}
 		result, testErr := laodi.TestArchiveProtection(home, *state, *app)
 		delivery := "not_requested"
@@ -102,6 +115,7 @@ func runProtect(args []string) error {
 			return err
 		}
 		plan, err = laodi.PlanArchiveGuard(home)
+		plan.ClientApp = *app
 		if err != nil {
 			return err
 		}
@@ -163,4 +177,11 @@ func printArchiveProtection(s laodi.ProtectionSummary, format string) error {
 	fmt.Printf("老底 · 额外快照限制\n状态: %s\n受限工作区目录: %d；归档条目: %d\n", label, s.ProtectedWorkspaces, s.ProtectedArtifacts)
 	fmt.Println("限制已核验的归档路径；不阻断普通模型请求、工具读取或其他上传路径。权限检查通过不代表观察到了上传尝试。")
 	return nil
+}
+
+func laodiConfiguredProtectionNotifier(state string) string {
+	if provider := platformNotifierProvider(state, ""); provider != nil {
+		return provider()
+	}
+	return ""
 }

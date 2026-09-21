@@ -25,7 +25,7 @@ type ArchiveProtectionTestResult struct {
 
 // TestArchiveProtection briefly exercises only newly created synthetic paths.
 // It neither changes ACLs nor starts, interrupts or inspects client sessions.
-func TestArchiveProtection(home, stateDir, app string) (ArchiveProtectionTestResult, error) {
+func testArchiveProtectionDarwin(home, stateDir, app string) (ArchiveProtectionTestResult, error) {
 	return testArchiveProtection(home, stateDir, app, func() error {
 		_, err := PlanZCodeProtection(app, home, "")
 		return err
@@ -155,7 +155,7 @@ func archiveProbe(parent *os.Root, name string, protected bool) (result archiveP
 	}
 	mkdirErr := directory.Mkdir("tmp", 0700)
 	result.created = mkdirErr == nil
-	result.denied = errors.Is(mkdirErr, syscall.EACCES) || errors.Is(mkdirErr, syscall.EPERM)
+	result.denied = errors.Is(mkdirErr, os.ErrPermission) || errors.Is(mkdirErr, syscall.EACCES) || errors.Is(mkdirErr, syscall.EPERM)
 	if result.created {
 		// It was empty and exclusively created by this probe; do not recurse.
 		tmpIdentity, statErr := directory.Lstat("tmp")

@@ -32,6 +32,7 @@ var archiveACLLine = regexp.MustCompile(`^\s*([0-9]+): (.+)$`)
 // not authorize a client version: callers must verify that separately.
 type ArchiveGuardPlan struct {
 	Home               string `json:"home"`
+	ClientApp          string `json:"-"`
 	Root               string `json:"root"`
 	ExistingWorkspaces int    `json:"existing_workspaces"`
 	ExistingArtifacts  int    `json:"existing_artifacts"`
@@ -258,7 +259,7 @@ func archiveLayout(home string) ([]archiveNode, bool, error) {
 	return nodes, false, nil
 }
 
-func PlanArchiveGuard(home string) (ArchiveGuardPlan, error) {
+func planArchiveGuardDarwin(home string) (ArchiveGuardPlan, error) {
 	if _, err := archivePrincipal(); err != nil {
 		return ArchiveGuardPlan{}, err
 	}
@@ -565,7 +566,7 @@ func archiveApply(root string, change archiveChange, enable bool, run archiveGua
 // EnableArchiveGuard installs exact, separately indexed ACL entries. Every ACL
 // change is durably described before mutation. Failures retain a recovery
 // receipt; DisableArchiveGuard safely unwinds only still-identifiable entries.
-func EnableArchiveGuard(plan ArchiveGuardPlan, stateDir string) (ArchiveGuardResult, error) {
+func enableArchiveGuardDarwin(plan ArchiveGuardPlan, stateDir string) (ArchiveGuardResult, error) {
 	result := archiveStatus()
 	principal, err := archivePrincipal()
 	if err != nil {
@@ -683,7 +684,7 @@ func archiveInspect(home string, receipt *archiveReceipt, run archiveGuardRunner
 	return status, nil
 }
 
-func InspectArchiveGuard(home, stateDir string) (ArchiveGuardStatus, error) {
+func inspectArchiveGuardDarwin(home, stateDir string) (ArchiveGuardStatus, error) {
 	status := archiveStatus()
 	principal, err := archivePrincipal()
 	if err != nil {
@@ -710,7 +711,7 @@ func InspectArchiveGuard(home, stateDir string) (ArchiveGuardStatus, error) {
 	return status, err
 }
 
-func DisableArchiveGuard(home, stateDir string) (ArchiveGuardResult, error) {
+func disableArchiveGuardDarwin(home, stateDir string) (ArchiveGuardResult, error) {
 	return disableArchiveGuard(home, stateDir, nil)
 }
 
