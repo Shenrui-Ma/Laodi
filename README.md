@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/laodi-logo.png" width="180" alt="Laodi 老底标志">
+  <img src="assets/laodi-logo.png" width="270" alt="Laodi 老底标志">
 </p>
 <h1 align="center">Laodi · 老底</h1>
 
