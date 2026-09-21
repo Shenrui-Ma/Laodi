@@ -55,6 +55,10 @@ func processIdentity(handle syscall.Handle) (string, uint64, error) {
 // Its event is private to this user and this process incarnation. Cancellation
 // takes the normal Watch exit path, which flushes state and marks it stopped.
 func WatchContext(parent context.Context, stateDir string) (context.Context, context.CancelFunc, error) {
+	return windowsProcessContext(parent, stateDir, monitorProcessReceipt)
+}
+
+func windowsProcessContext(parent context.Context, stateDir, receiptName string) (context.Context, context.CancelFunc, error) {
 	root, err := openStateRoot(stateDir, true)
 	if err != nil {
 		return nil, nil, err
@@ -93,10 +97,10 @@ func WatchContext(parent context.Context, stateDir string) (context.Context, con
 	record := monitorProcess{Schema: SchemaVersion, PID: uint32(os.Getpid()), Created: created, Executable: executable, Event: eventName}
 	data, _ := json.Marshal(record)
 	data = append(data, '\n')
-	path := filepath.Join(stateDir, monitorProcessReceipt)
+	path := filepath.Join(stateDir, receiptName)
 	// A crash leaves a receipt. The exclusive monitor lock proves no monitor
 	// owns it now; validate the file before replacing it through the backend.
-	if err := checkRegularFile(root, monitorProcessReceipt); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := checkRegularFile(root, receiptName); err != nil && !errors.Is(err, os.ErrNotExist) {
 		syscall.CloseHandle(syscall.Handle(event))
 		return nil, nil, err
 	}
@@ -113,7 +117,7 @@ func WatchContext(parent context.Context, stateDir string) (context.Context, con
 		}
 	}
 	if err == nil {
-		err = replaceStateFile(root, temp, monitorProcessReceipt)
+		err = replaceStateFile(root, temp, receiptName)
 	}
 	_ = root.Remove(temp)
 	if err != nil {
@@ -152,7 +156,54 @@ func WatchContext(parent context.Context, stateDir string) (context.Context, con
 // StopMonitor never terminates a process. Both creation time and executable
 // file identity must match before signalling its per-process native event.
 func StopMonitor(ctx context.Context, stateDir, expectedExecutable string) error {
-	data, err := readServiceFile(filepath.Join(stateDir, monitorProcessReceipt))
+	if data, err := readServiceFile(filepath.Join(stateDir, startupSupervisorReceipt)); err == nil {
+		// The supervisor also owns the backoff interval, when no child is alive.
+		// Its cancellation stops only its exact child and prevents a later retry.
+		gone, err := startupSupervisorExited(data)
+		if err != nil {
+			return err
+		}
+		if !gone {
+			return stopWindowsProcessReceipt(ctx, stateDir, expectedExecutable, startupSupervisorReceipt)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return stopWindowsProcessReceipt(ctx, stateDir, expectedExecutable, monitorProcessReceipt)
+}
+
+// A crashed supervisor can leave its independently running worker behind.
+// Only a signalled handle, a vanished PID or a different creation time permits
+// falling through to the worker receipt; permission failures do not.
+func startupSupervisorExited(data []byte) (bool, error) {
+	var r monitorProcess
+	if decodeWindowsRecord(data, &r) != nil || r.Schema != SchemaVersion || r.PID == 0 || r.Created == 0 {
+		return false, errors.New("invalid Startup supervisor receipt")
+	}
+	h, err := syscall.OpenProcess(0x1000|syscall.SYNCHRONIZE, false, r.PID)
+	if errors.Is(err, syscall.Errno(87)) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer syscall.CloseHandle(h)
+	status, err := syscall.WaitForSingleObject(h, 0)
+	if err != nil {
+		return false, err
+	}
+	if status == 0 {
+		return true, nil
+	}
+	_, created, err := processIdentity(h)
+	if err != nil {
+		return false, err
+	}
+	return created != r.Created, nil
+}
+
+func stopWindowsProcessReceipt(ctx context.Context, stateDir, expectedExecutable, receiptName string) error {
+	data, err := readServiceFile(filepath.Join(stateDir, receiptName))
 	if err != nil {
 		return fmt.Errorf("monitor stop identity unavailable: %w", err)
 	}

@@ -83,6 +83,10 @@ func run(args []string) error {
 	notifier := fs.String("notifier", "", "显式通知helper；留空只记录，不请求权限")
 	apply := fs.Bool("apply", false, "显式安装/移除用户级后台服务")
 	hooksOnly := fs.Bool("hooks-only", false, "仅接收工具事件，不要求安装ZCode或读取快照")
+	startupWorker := new(bool)
+	if runtime.GOOS == "windows" {
+		fs.BoolVar(startupWorker, "startup-worker", false, "internal Startup worker")
+	}
 	if err = fs.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -132,6 +136,11 @@ func run(args []string) error {
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
+		if !*startupWorker && *duration == 0 {
+			if handled, err := runPlatformStartupWatch(ctx, *data, args); handled {
+				return err
+			}
+		}
 		return laodi.Watch(ctx, scanner, laodi.WatchOptions{StateDir: *data, Interval: *interval, Duration: *duration, Notifier: *notifier, NotifierForEvent: platformNotifierProvider(*data, *notifier), Output: os.Stdout, HooksOnly: *hooksOnly, ProtectionHome: home})
 	case "status", "incidents":
 		st, e := laodi.LoadState(*data)

@@ -16,6 +16,10 @@ var lockFileEx = fileKernel.NewProc("LockFileEx")
 // Denying FILE_SHARE_DELETE for the lock's lifetime prevents path replacement
 // from creating a second lock identity while the first writer is active.
 func AcquireLock(dir string) (func(), error) {
+	return acquireWindowsNamedLock(dir, ".lock")
+}
+
+func acquireWindowsNamedLock(dir, name string) (func(), error) {
 	root, err := openStateRoot(dir, true)
 	if err != nil {
 		return nil, err
@@ -26,13 +30,13 @@ func AcquireLock(dir string) (func(), error) {
 		return nil, err
 	}
 	cleanup := func() { unpin(); root.Close() }
-	created, err := openStateFile(root, ".lock", os.O_RDWR, true)
+	created, err := openStateFile(root, name, os.O_RDWR, true)
 	if err != nil {
 		cleanup()
 		return nil, err
 	}
 	created.Close()
-	path, err := windowsPrivateName(root, ".lock")
+	path, err := windowsPrivateName(root, name)
 	if err != nil {
 		cleanup()
 		return nil, err
@@ -43,7 +47,7 @@ func AcquireLock(dir string) (func(), error) {
 		return nil, err
 	}
 	opened, err := f.Stat()
-	named, nameErr := root.Lstat(".lock")
+	named, nameErr := root.Lstat(name)
 	if err != nil || nameErr != nil || !os.SameFile(opened, named) {
 		f.Close()
 		cleanup()

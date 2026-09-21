@@ -62,9 +62,12 @@ func nativeStartupVersionedFixture(t *testing.T) (ServicePlan, func(string) Serv
 	return selectVersion("v0.4.1-crash.1"), selectVersion
 }
 
-func awaitNativeStartupMonitor(t *testing.T, p ServicePlan) monitorProcess {
+func awaitNativeStartupMonitor(t *testing.T, p ServicePlan, waitFor ...time.Duration) monitorProcess {
 	t.Helper()
 	deadline := time.Now().Add(20 * time.Second)
+	if len(waitFor) > 0 {
+		deadline = time.Now().Add(waitFor[0])
+	}
 	for time.Now().Before(deadline) {
 		if verifyWindowsStartupMonitor(p) == nil {
 			data, err := readServiceFile(filepath.Join(p.options.StateDir, monitorProcessReceipt))
@@ -84,6 +87,14 @@ func awaitNativeStartupMonitor(t *testing.T, p ServicePlan) monitorProcess {
 
 func crashNativeStartupMonitor(t *testing.T, p ServicePlan, r monitorProcess) {
 	t.Helper()
+	crashNativeStartupProcess(t, p, r)
+	if err := verifyWindowsStartupMonitor(p); err == nil {
+		t.Fatal("crashed monitor was accepted as healthy")
+	}
+}
+
+func crashNativeStartupProcess(t *testing.T, p ServicePlan, r monitorProcess) {
+	t.Helper()
 	// Open and validate the same native handle that is terminated; never signal
 	// a process merely because it reused the recorded PID or executable name.
 	h, err := syscall.OpenProcess(1|0x1000|syscall.SYNCHRONIZE, false, r.PID)
@@ -101,14 +112,38 @@ func crashNativeStartupMonitor(t *testing.T, p ServicePlan, r monitorProcess) {
 	if result, err := syscall.WaitForSingleObject(h, 10000); err != nil || result != 0 {
 		t.Fatal("synthetic child did not exit")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if err := waitWindowsStartupStopped(ctx, p); err != nil {
+}
+
+func TestWindowsStartupCrashedSupervisorStillStopsWorker(t *testing.T) {
+	p, _ := nativeStartupVersionedFixture(t)
+	if err := InstallService(p); err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyWindowsStartupMonitor(p); err == nil {
-		t.Fatal("crashed monitor was accepted as healthy")
+	t.Cleanup(func() {
+		if owned, _ := inspectServiceOwnership(p); owned {
+			if err := UninstallService(p); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	worker := awaitNativeStartupMonitor(t, p)
+	data, err := readServiceFile(filepath.Join(p.options.StateDir, startupSupervisorReceipt))
+	var supervisor monitorProcess
+	if err != nil || decodeWindowsRecord(data, &supervisor) != nil || supervisor.PID == worker.PID {
+		t.Fatal("missing distinct supervisor identity")
 	}
+	crashNativeStartupProcess(t, p, supervisor)
+	if after := awaitNativeStartupMonitor(t, p); after != worker {
+		t.Fatal("supervisor crash changed independent worker")
+	}
+	if err := UninstallService(p); err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := AcquireLock(p.options.StateDir)
+	if err != nil {
+		t.Fatal("orphaned worker survived uninstall", err)
+	}
+	unlock()
 }
 
 func TestWindowsStartupNativeVersionedCrashLifecycle(t *testing.T) {
@@ -133,13 +168,10 @@ func TestWindowsStartupNativeVersionedCrashLifecycle(t *testing.T) {
 				t.Fatal("repeat install replaced the healthy monitor")
 			}
 			crashNativeStartupMonitor(t, p, before)
-			t.Log("real versioned child exited with code 73; protocol-1 launcher exited and native monitor lock released")
+			t.Log("real versioned worker exited with code 73; supervisor owns the bounded recovery interval")
 			if action == "reinstall_update" {
-				if err := InstallService(p); err != nil {
-					t.Fatal(err)
-				}
-				if after := awaitNativeStartupMonitor(t, p); after.Created == before.Created && after.PID == before.PID {
-					t.Fatal("explicit reinstall did not start a new monitor")
+				if after := awaitNativeStartupMonitor(t, p, 80*time.Second); after.Created == before.Created && after.PID == before.PID {
+					t.Fatal("automatic recovery did not start a new monitor")
 				}
 				if err := stopWindowsService(p); err != nil {
 					t.Fatal(err)
