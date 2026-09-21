@@ -1,26 +1,41 @@
-Laodi 更名后的 macOS BETA 版本。已有安装继续沿用原状态目录、通知身份和接入配置。
+# Laodi v0.4.1-beta.2
 
-安装或更新：
+适用于 macOS 13+，Apple Silicon 与 Intel 共用一个安装包。
+
+## 本版更新
+
+- 通知统一为短标题和一句事实，提醒标题以“发现：”开头。
+- 新增 `protect test --notify`：实际检查打包操作是否被拒绝、正常读写是否可用，并清理测试文件，通过后提示“测试打包操作已拦截”。
+- 通知使用左侧标准应用图标，不附加右侧图片。
+- 打包保护异常保留在状态和事件中，不再弹出这类提醒。
+- 更新随包 Skill 的平台说明，保留已有配置、事件和保护规则。
+
+## 安装与更新
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | sh
 ```
 
-已安装用户也可运行 `laodi update`；未加入 PATH 时使用：
+已安装用户可运行：
 
 ```sh
 "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" update
 ```
 
-- 发布包改为 `Laodi-v0.4.1-beta.1-macos-universal.zip`，包内目录为 `Laodi`。Apple Silicon 与 Intel 共用一个包。
-- 更新器切换到新仓库地址；安装保留已有配置与事件，不迁移用户状态目录。
-- README 精简实验摘要和提醒后自查；Skill 改进已安装程序的路径查找。
-- `protect enable/status/disable` 提供可选的 Git 历史打包限制（BETA），默认安装仅监测。限制仅适用于支持的客户端版本和归档路径，不阻断普通模型请求、文件读取或其他上传路径。详见仓库 `docs/PROTECTION.md`。
+也可使用 `update --version v0.4.1-beta.2` 指定本版。安装不需要 sudo，不重启正在工作的编程工具。
 
-系统要求为 macOS 13 或更新版本。安装器配置已检测到的支持工具 Hook 与用户级后台监测，无需 sudo；未发现支持工具时仅复制程序并提示尚未接入。Skill 随包提供，不会自动安装到客户端，也不修改 PATH。
+已启用支持范围内的打包保护时，可主动检查：
 
-发布 ZIP 附带 SHA-256 和 `build-info.json`。本包为 **ad-hoc 签名的 BETA**，尚无 Apple Developer ID 签名与公证。macOS 首次打开若拦截，请核对来源并按“系统设置 > 隐私与安全性”的系统流程处理。
+```sh
+"$HOME/Library/Application Support/Laodi-skills/runtime/laodi" protect test --notify
+```
 
-构建验证包括两种架构、代码签名和构建机原生架构的版本与帮助命令；不代表已完成 Intel 实机、下载后 Gatekeeper、系统通知及所有客户端回调验收。
+该通知表示主动自检通过，不是某 APP 的实际上传拦截记录；未启用、检查失败或清理未完成时，不发送成功通知。
 
-卸载可运行 `laodi remove` 或包内 `uninstall.command`；启用打包限制时需先正常退出受保护客户端并运行 `laodi protect disable`。本地记录保留。完整用法见 README 与包内 `INSTALL.txt`。
+## 验证与范围
+
+发布流程执行 Go 竞态测试、静态检查、命令行安装回归、原生通知与图标检查，并构建两种架构、核验签名和构建机上的版本输出。ZIP 附带 SHA-256 和 `build-info.json`。
+
+仍为 ad-hoc 签名的 BETA，未做 Apple Developer ID 签名与公证。两种架构均构建，Intel 实机、不同系统通知设置和所有客户端组合并未全部验收。
+
+保护仍限已支持客户端的特定归档路径，不阻止所有文件读取、模型请求或其他上传方式。Windows 使用独立 Release，本次不替换 Windows 安装包。

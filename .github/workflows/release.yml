@@ -10,7 +10,7 @@ on:
       version:
         description: 'Version tag for a build-only verification (no publication)'
         required: true
-        default: 'v0.4.1-beta.1'
+        default: 'v0.4.1-beta.2'
 
 permissions:
   contents: read
@@ -38,6 +38,7 @@ jobs:
           make check
           python3 scripts/dev/verify_public_docs.py
           python3 scripts/dev/verify_bootstrap.py --output /tmp/laodi-bootstrap-results.json
+          sh platform/macos/notifier/test.sh
       - name: Build and verify universal preview
         env:
           RELEASE_TAG: ${{ inputs.version }}
@@ -63,6 +64,7 @@ jobs:
           make check
           python3 scripts/dev/verify_public_docs.py
           python3 scripts/dev/verify_bootstrap.py --output /tmp/laodi-bootstrap-results.json
+          sh platform/macos/notifier/test.sh
       - name: Build and verify universal package
         env:
           RELEASE_TAG: ${{ github.ref_name }}
