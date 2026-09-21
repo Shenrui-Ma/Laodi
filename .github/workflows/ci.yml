@@ -24,6 +24,12 @@ jobs:
       - name: Native tests and vet
         shell: pwsh
         run: ./scripts/dev/test-windows.ps1
+      - name: Desktop installer worker (PowerShell 5.1 and 7)
+        shell: pwsh
+        run: |
+          ./scripts/dev/verify-windows-desktop-bootstrap.ps1
+          & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -File ./scripts/dev/verify-windows-desktop-bootstrap.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell installer worker regression failed' }
       - name: Build Windows package (publication remains gated)
         shell: pwsh
         run: ./scripts/release/build-windows.ps1 -Version v0.4.1-windows.ci -SkipChecks

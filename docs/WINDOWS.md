@@ -13,10 +13,16 @@
 在普通 PowerShell 中执行：
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/v0.4.1-windows.beta.2/install.ps1').Content)) -Version 'v0.4.1-windows.beta.2'
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.ps1').Content)) -Version 'v0.4.1-windows.beta.2'
 ```
 
 脚本从对应 Release 下载 Windows 包并校验 ZIP 与包内文件。不修改 PATH，默认安装到当前用户目录。更新保留配置与记录。
+
+安装脚本使用主分支入口，安装包仍由 `-Version` 固定选择。这使安装入口的兼容性修复可以独立于发行包交付；旧标签中的安装脚本不会随主分支更新。
+
+在已登录 Windows 桌面的 Agent 中执行时，脚本会检查临时包的真实路径。如果宿主重定向了用户目录，它会通过同一用户、同一会话的桌面启动经过校验的安装器，等待完成并返回输出和退出码。它不请求管理员权限、不改安全策略，也不依赖临时计划任务。无可用桌面、策略禁止启动或结果超时会明确报错；结果不确定时保留私有暂存文件，不自动重复安装。
+
+该兼容路径适用于 `install.ps1`。它不修改宿主的目录视图，也不更新协议 1 的固定启动器；已经存在重定向副本的宿主，直接运行旧固定入口查询状态仍可能失败。此时在普通桌面终端查询，后台运行不依赖 Agent 会话。
 
 ## 计划任务被拒绝时
 
