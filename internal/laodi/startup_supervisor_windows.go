@@ -19,6 +19,15 @@ const startupSupervisorReceipt = "startup-supervisor.json"
 // versioned host supervises its own worker, and only for the exact owned Startup
 // invocation. Task Scheduler, foreground and finite watches retain their policy.
 func RunWindowsStartupSupervisor(parent context.Context, stateDir string, args []string) (bool, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return true, err
+	}
+	// Direct setup may use an unversioned development binary. Such watches do
+	// not own a current-version pointer and must keep the ordinary watch path.
+	if filepath.Base(exe) != "laodi-host.exe" || !sameWindowsInstallationPath(filepath.Dir(filepath.Dir(exe)), filepath.Join(stateDir, "versions")) {
+		return false, nil
+	}
 	data, err := readServiceFile(filepath.Join(stateDir, serviceReceiptName))
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
@@ -32,10 +41,6 @@ func RunWindowsStartupSupervisor(parent context.Context, stateDir string, args [
 	}
 	if receipt.Backend != "user_startup" || receipt.LinkArguments != startupArguments(ServicePlan{Arguments: append([]string{""}, args...)}) {
 		return false, nil
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return true, err
 	}
 	current, err := readWindowsCurrent(stateDir)
 	if err != nil {
