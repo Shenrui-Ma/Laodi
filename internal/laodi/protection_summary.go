@@ -29,6 +29,9 @@ func SummarizeArchiveGuard(s ArchiveGuardStatus) ProtectionSummary {
 }
 
 func ReadArchiveProtectionSummary(home, stateDir, app string) ProtectionSummary {
+	if app == "" {
+		app = protectionRecordedApp(home, stateDir)
+	}
 	return readArchiveProtectionSummary(home, stateDir, app, func(app string) bool {
 		_, _, err := inspectProtectionBundle(app)
 		return err == nil
@@ -50,7 +53,7 @@ func readArchiveProtectionSummary(home, stateDir, app string, verify func(string
 	}
 	p = SummarizeArchiveGuard(s)
 	if p.Status == "enabled" {
-		if !verify(app) {
+		if checkArchiveProtectionScope(home) != nil || !verify(app) {
 			p.Status = "unsupported_client"
 		}
 	}

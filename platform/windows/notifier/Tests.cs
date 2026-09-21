@@ -17,7 +17,7 @@ internal static class NotifierProtocolTests {
             Reject(()=>Program.Configure(new string[]{"--send"}),"state root is mandatory");
             foreach(string bad in new string[]{"","\r\n","SYNTHETIC secret content","秘密",new string('a',129)})Reject(()=>Program.ValidateEventId(bad),"reject invalid event ID");
             Program.ValidateEventId(new string('a',128));
-            string[] kinds={"test","snapshot-history","upload-attempt","upload-accepted","snapshot-workspace","workspace-upload-attempt","workspace-upload-accepted","snapshot-config","config-upload-attempt","config-upload-accepted","tool-output-sensitive","hook-coverage-degraded","coverage-degraded"};
+            string[] kinds={"test","archive-blocked-test","snapshot-history","upload-attempt","upload-accepted","snapshot-workspace","workspace-upload-attempt","workspace-upload-accepted","snapshot-config","config-upload-attempt","config-upload-accepted","tool-output-sensitive","hook-coverage-degraded","coverage-degraded"};
             foreach(string kind in kinds){
                 XmlDocument content=Program.Content(kind,"synthetic-id");
                 Assert(content.DocumentElement.GetAttribute("launch")=="status","fixed COM activation");

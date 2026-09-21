@@ -34,7 +34,7 @@ type ZCodeProtectionPlan struct {
 
 // PlanZCodeProtection validates the exact client build before any restriction.
 // Only identity and process metadata are inspected; no account settings are read.
-func PlanZCodeProtection(app, home, workspace string) (ZCodeProtectionPlan, error) {
+func planZCodeProtectionDarwin(app, home, workspace string) (ZCodeProtectionPlan, error) {
 	if runtime.GOOS != "darwin" {
 		return ZCodeProtectionPlan{}, errors.New("client protection currently requires macOS")
 	}
@@ -72,7 +72,7 @@ func PlanZCodeProtection(app, home, workspace string) (ZCodeProtectionPlan, erro
 	return ZCodeProtectionPlan{App: app, Home: home, Workspace: workspace, Executable: executable, Build: build, ASARSHA256: digest, RunningCount: len(pids), RunningPIDs: pids}, nil
 }
 
-func inspectProtectionBundle(app string) (string, string, error) {
+func inspectProtectionBundleDarwin(app string) (string, string, error) {
 	plistPath := filepath.Join(app, "Contents", "Info.plist")
 	data, err := readProtectionFile(plistPath, 1<<20)
 	if err != nil {
@@ -192,7 +192,7 @@ func protectionPlainXML(decoder *xml.Decoder, start xml.StartElement) (string, e
 	}
 }
 
-func checkProtectionPath(path string, directory, allowMissing bool) error {
+func checkProtectionPathDarwin(path string, directory, allowMissing bool) error {
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path || strings.ContainsAny(path, "\x00\r\n") {
 		return errors.New("protection paths must be clean absolute paths")
 	}
@@ -262,7 +262,7 @@ func readProtectionFile(path string, limit int64) ([]byte, error) {
 
 // RunningZCodeProcesses reads process IDs and executable names only. Arguments
 // and environments may contain credentials and are deliberately not queried.
-func RunningZCodeProcesses(app string) ([]int, error) {
+func runningZCodeProcessesDarwin(app string) ([]int, error) {
 	if runtime.GOOS != "darwin" {
 		return nil, errors.New("application process inspection requires macOS")
 	}

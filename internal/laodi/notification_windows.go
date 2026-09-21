@@ -84,7 +84,7 @@ func validWindowsNotificationArguments(args []string) bool {
 		}
 	}
 	switch args[4] {
-	case "test", "snapshot-history", "upload-attempt", "upload-accepted", "snapshot-workspace", "workspace-upload-attempt", "workspace-upload-accepted", "snapshot-config", "config-upload-attempt", "config-upload-accepted", "tool-output-sensitive", "hook-coverage-degraded", "coverage-degraded":
+	case "test", "archive-blocked-test", "snapshot-history", "upload-attempt", "upload-accepted", "snapshot-workspace", "workspace-upload-attempt", "workspace-upload-accepted", "snapshot-config", "config-upload-attempt", "config-upload-accepted", "tool-output-sensitive", "hook-coverage-degraded", "coverage-degraded":
 		return true
 	}
 	return false

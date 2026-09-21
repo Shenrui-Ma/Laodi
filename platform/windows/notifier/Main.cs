@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -155,6 +155,7 @@ internal static class Program {
         string title,body;
         switch(kind) {
             case "test":title="老底：通知测试";body="这是一条测试通知。";break;
+            case "archive-blocked-test":title="测试打包操作已拦截";body="Git 历史打包保护正常。";break;
             case "snapshot-history":title="发现：Git 历史打包";body="某APP的打包清单包含 Git 历史，上传情况待确认。";break;
             case "upload-attempt":title="发现：Git 历史上传尝试";body="某APP记录了 Git 历史上传尝试，结果待确认。";break;
             case "upload-accepted":title="发现：Git 历史上传确认";body="某APP记录了 Git 历史上传成功，远端留存情况未知。";break;
