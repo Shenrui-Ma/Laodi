@@ -1,11 +1,12 @@
 # Windows 推荐更新通道
 
-包含此功能的新版本在省略 `--version` 时，从固定地址读取 [Windows amd64 推荐元数据](https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/channels/windows-amd64.json)。通道独立于 GitHub `latest`，不会选择 macOS Release。
+从 `v0.4.1-windows.beta.3` 起，省略 `--version` 时会从固定地址读取 [Windows amd64 推荐元数据](https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/channels/windows-amd64.json)。通道独立于 GitHub `latest`，不会选择 macOS Release。
 
 ```powershell
-laodi update --dry-run
-laodi update
-laodi update --version v0.4.1-windows.beta.2
+$Laodi = Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe'
+& $Laodi update --dry-run
+& $Laodi update
+& $Laodi update --version v0.4.1-windows.beta.3
 ```
 
 `--version` 绕过通道，可固定版本或主动回退。默认通道拒绝比正在运行的正式构建更旧的推荐版本；同版本仍可核验并执行安装计划。没有正式发行标签的开发构建不参与版本顺序比较。`--dry-run` 仍下载、校验并调用新包安装器的预览模式，不切换版本。
@@ -19,7 +20,7 @@ laodi update --version v0.4.1-windows.beta.2
   "schema": 1,
   "channel": "recommended",
   "platform": "windows/amd64",
-  "version": "v0.4.1-windows.beta.2"
+  "version": "v0.4.1-windows.beta.3"
 }
 ```
 
@@ -35,4 +36,4 @@ laodi update --version v0.4.1-windows.beta.2
 2. 在单独可审查的改动中，将 `channels/windows-amd64.json` 的 `version` 更新为已发布版本并合并到 `main`。候选构建工作流不自动推广通道。
 3. 使用包含此功能的构建在隔离安装上执行默认 `update --dry-run`，核对选择版本与安装计划，再执行已授权的更新验收。
 
-本元数据最初推荐已经发布的 `v0.4.1-windows.beta.2`。在元数据合并到 `main` 之前，远端通道尚不可用；仅在工作分支新增文件不会使公共默认更新生效。已发布的 beta.2 及更早二进制也不会因此获得新代码，仍需显式版本或安装入口升级到包含此功能的发行版。新发行版若比通道推荐更高，默认更新会拒绝降级，直到维护者推广通道。
+beta.2 及更早二进制不会自动获得新代码。beta.2 首次升级需显式指定 `--version v0.4.1-windows.beta.3`；旧版安装未完成时，重新运行[命令行安装入口](WINDOWS.md#命令行安装)。只有公开资产校验完成后才推广推荐通道。新发行版若比通道推荐更高，默认更新会拒绝降级，直到维护者推广通道。
