@@ -140,6 +140,14 @@ namespace LaodiBootstrap {
 }
 '@
 }
+function Get-LaodiDesktopWorkerArguments([string]$WorkerPath) {
+    if($WorkerPath.Contains('"')){throw 'Invalid desktop installer path'}
+    # The verified, private worker is generated locally. Windows PowerShell's
+    # default Restricted policy permits the in-memory bootstrap but rejects
+    # its -File worker. Set only this child process's policy; never change the
+    # user's policy. MachinePolicy/UserPolicy remain higher-priority controls.
+    return @('-NoLogo','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',$WorkerPath)
+}
 function Invoke-LaodiDesktopInstaller([string]$Payload,[string[]]$InstallerArguments,[string]$Bridge,[string]$InstallerHash,[ref]$RetainStage,[ValidateRange(1,300)][int]$WaitSeconds=300) {
     # Pass data as JSON, never as executable PowerShell text. The wrapper and
     # payload are held read-only until completion. A timeout is indeterminate:
@@ -201,8 +209,7 @@ $temporary=Join-Path $PSScriptRoot 'result.pending'
         }
         $powershell=Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
         $workerPath=Join-Path $PhysicalBridge 'worker.ps1'
-        if($workerPath.Contains('"')){throw 'Invalid desktop installer path'}
-        $command='-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -File "'+$workerPath+'"'
+        $command=(@(Get-LaodiDesktopWorkerArguments $workerPath) | ForEach-Object {'"'+$_+'"'}) -join ' '
         # Mark uncertain before COM dispatch: a failing RPC can still have
         # launched its process. Do not clean up files out from under it.
         $RetainStage.Value=$true

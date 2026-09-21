@@ -6,7 +6,7 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'install.ps1'),[ref]$tokens,[ref]$errors)
 if($errors.Count){throw $errors[0]}
-foreach($name in @('Initialize-LaodiDesktopBridge','Invoke-LaodiDesktopInstaller')) {
+foreach($name in @('Initialize-LaodiDesktopBridge','Get-LaodiDesktopWorkerArguments','Invoke-LaodiDesktopInstaller')) {
     $definition=$ast.Find({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true)
     if($null -eq $definition){throw "Missing installer function: $name"}
     Invoke-Expression $definition.Extent.Text
@@ -18,6 +18,7 @@ $root=New-LaodiPrivateTestDirectory
 $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
 $safeToClean=$true
 $cases=[Collections.Generic.List[object]]::new()
+$originalPolicy=Get-ExecutionPolicy -List | ConvertTo-Json -Compress
 try {
     $payload=Join-Path $root 'payload';New-Item -ItemType Directory -Path $payload|Out-Null
     $source=Join-Path $root 'fixture.go'
@@ -48,7 +49,19 @@ func main(){json.NewEncoder(os.Stdout).Encode(os.Args[1:]);fmt.Fprint(os.Stderr,
                 [IO.File]::WriteAllText((Join-Path $bridge 'request.json'),($request|ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
                 [IO.File]::WriteAllText((Join-Path $bridge 'worker.ps1'),$worker,[Text.UTF8Encoding]::new($false))
                 $powershell=Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
-                $child=Invoke-LaodiTestProcess -Executable $powershell -Arguments @('-NoProfile','-NonInteractive','-File',(Join-Path $bridge 'worker.ps1'))
+                $workerPath=Join-Path $bridge 'worker.ps1'
+                if($name -eq 'arguments') {
+                    # Reproduce the clean-client failure before exercising the
+                    # fix. Only the child process policy changes; no registry
+                    # or organization policy is altered by this regression.
+                    $policyCommand='Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1" -ErrorAction Stop; [Console]::Write((Get-ExecutionPolicy).ToString())'
+                    $policy=Invoke-LaodiTestProcess -Executable $powershell -Arguments @('-NoProfile','-NonInteractive','-ExecutionPolicy','Restricted','-Command',$policyCommand)
+                    if($policy.ExitCode -or $policy.Stdout -cne 'Restricted'){throw 'Cannot exercise Restricted policy; check higher-priority organization policy'}
+                    $blocked=Invoke-LaodiTestProcess -Executable $powershell -Arguments @('-NoProfile','-NonInteractive','-ExecutionPolicy','Restricted','-File',$workerPath)
+                    if($blocked.ExitCode -eq 0 -or (Test-Path -LiteralPath (Join-Path $bridge 'result.json'))){throw 'Restricted policy did not reject the unsigned worker fixture'}
+                    $cases.Add([pscustomobject]@{case='restricted-policy-reproduced';passed=$true;desktop=$false})
+                }
+                $child=Invoke-LaodiTestProcess -Executable $powershell -Arguments @(Get-LaodiDesktopWorkerArguments $workerPath) -Environment @{PSExecutionPolicyPreference='Restricted'}
                 if($child.ExitCode){throw 'Worker failed before reporting a result'}
                 $result=Get-Content -LiteralPath (Join-Path $bridge 'result.json') -Raw -Encoding UTF8|ConvertFrom-Json
             }
@@ -76,6 +89,7 @@ func main(){json.NewEncoder(os.Stdout).Encode(os.Args[1:]);fmt.Fprint(os.Stderr,
         $safeToClean=$true
         $cases.Add([pscustomobject]@{case='timeout-retention';passed=$true;desktop=$true})
     }
+    if((Get-ExecutionPolicy -List | ConvertTo-Json -Compress) -cne $originalPolicy){throw 'Desktop worker changed the calling process execution policy'}
     $cases|ConvertTo-Json
 } finally {
     # Only this script's generated private fixture may be recursively removed.

@@ -239,3 +239,39 @@ func TestWindowsStartupStopDeadlineRetainsLiveLauncher(t *testing.T) {
 		t.Fatal("recycled PID was accepted as the installed launcher")
 	}
 }
+
+func TestWindowsStartupStopRequiresBothProcessLocksIdle(t *testing.T) {
+	for _, receipt := range []string{"missing", "invalid"} {
+		for _, lockName := range []string{".startup-supervisor.lock", ".lock"} {
+			t.Run(receipt+"/"+lockName, func(t *testing.T) {
+				p := windowsServiceFixture(t)
+				if receipt == "invalid" {
+					if err := writeWindowsRecord(p.options.StateDir, startupSupervisorReceipt, monitorProcess{}); err != nil {
+						t.Fatal(err)
+					}
+				}
+				// A shell logon does not write the installer's launcher receipt.
+				if _, err := os.Stat(filepath.Join(p.options.StateDir, startupLauncherReceipt)); !errors.Is(err, os.ErrNotExist) {
+					t.Fatal("fixture unexpectedly has a launcher receipt", err)
+				}
+				unlock, err := acquireWindowsNamedLock(p.options.StateDir, lockName)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer unlock()
+				if err := stopWindowsStartup(p); err == nil {
+					t.Fatal("stop succeeded while a background process lock was held")
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+				defer cancel()
+				if err := waitWindowsStartupStopped(ctx, p); err == nil {
+					t.Fatal("wait treated an unavailable receipt as proof of stopping")
+				}
+				unlock()
+				if err := stopWindowsStartup(p); err != nil {
+					t.Fatal("both process locks are idle, but stop failed", err)
+				}
+			})
+		}
+	}
+}

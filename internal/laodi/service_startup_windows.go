@@ -501,14 +501,30 @@ func stopWindowsStartup(plan ServicePlan) error {
 		expected = plan.options.Executable
 	}
 	if err := StopMonitor(ctx, plan.options.StateDir, expected); err != nil {
-		unlock, lockErr := AcquireLock(plan.options.StateDir)
-		if lockErr != nil {
+		if lockErr := windowsStartupLocksIdle(plan.options.StateDir); lockErr != nil {
 			return err
 		}
-		unlock()
 	}
 	return waitWindowsStartupStopped(ctx, plan)
 }
+
+// A logon launch has no installer launcher receipt, and its supervisor keeps
+// running between worker retries. Hold both locks together to prove that neither
+// process can still own this installation, even when its receipt is unavailable.
+func windowsStartupLocksIdle(stateDir string) error {
+	unlockSupervisor, err := acquireWindowsNamedLock(stateDir, ".startup-supervisor.lock")
+	if err != nil {
+		return err
+	}
+	defer unlockSupervisor()
+	unlockWorker, err := AcquireLock(stateDir)
+	if err != nil {
+		return err
+	}
+	defer unlockWorker()
+	return nil
+}
+
 func waitWindowsStartupStopped(ctx context.Context, plan ServicePlan) error {
 	for {
 		running, err := startupLauncherRunning(plan)
@@ -519,9 +535,7 @@ func waitWindowsStartupStopped(ctx context.Context, plan ServicePlan) error {
 		// handle signals. Retry only this unavailable-identity case within the
 		// existing deadline; never treat unavailable ownership as stopped.
 		if err == nil && !running {
-			unlock, err := AcquireLock(plan.options.StateDir)
-			if err == nil {
-				unlock()
+			if err := windowsStartupLocksIdle(plan.options.StateDir); err == nil {
 				return nil
 			}
 		}

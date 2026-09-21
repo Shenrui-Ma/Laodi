@@ -33,11 +33,13 @@ zero events cannot be used to count installed or working integrations.
 
 ## Startup recovery boundary
 
-Startup fallback still starts the monitor at login and supports explicit
-installation repair. Its protocol-1 stable launcher does not automatically
-restart a crashed child. A safe supervisor needs a separately reviewed migration
-that preserves user stop/disable intent, ownership, bounded retry and uninstall
-behavior. The Task Scheduler backend retains its existing bounded failure retry.
+Startup fallback starts the monitor at login. For versioned installations, the
+selected version supervises its worker and retries abnormal exits at most three
+times, with a one-minute delay. Before each retry it rechecks the owned shortcut,
+receipt, selected version and startup preference. Normal exits and explicit
+stops do not restart; uninstall cancels recovery during the delay. The stable
+protocol-1 launcher remains compatible. Direct unversioned watches retain their
+existing behavior. The Task Scheduler backend keeps its own bounded retry.
 
 The native Startup regression runs a real stable launcher and versioned monitor
 inside synthetic directories. It checks child crashes, repeated installation,
