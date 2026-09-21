@@ -1,50 +1,36 @@
-# Laodi v0.4.1-windows.beta.3
+# Laodi v0.4.1-windows.beta.4
 
-面向 Windows 11 x64 的预编译包，提供工具事件监测、用户级后台运行和系统通知。Windows 暂不提供 Git 历史打包阻断。
+适用于 Windows 11 x64。
 
 ## 本版更新
 
-- 支持 `update` 自动选择 Windows 推荐版本，保留指定版本更新。
-- 登录启动后端增加有限崩溃恢复；主动停止、卸载或启动设置改变时停止恢复。
-- 改进桌面 Agent 内的安装兼容性，修复默认文件所有者导致的私有文件创建失败。
-- 状态查询区分工具接入、历史回调和监测覆盖；通知统一为短标题和一句事实。
+- 新增可选的 Git 历史打包限制，支持启用、状态查询、自检和撤销；仅适配经核验的 3.11.2 旧构建。
+- 校验程序身份和缓存位置；记录原始权限，保护对象被移动或修改时保留恢复记录。
+- 自检通知与 macOS 一致：**测试打包操作已拦截** / Git 历史打包保护正常。
+- 保留 beta.3 的后台恢复、监测状态和推荐版本更新。
 
-## 安装
+保护默认不启用，首次启用和撤销前需正常退出客户端。具体命令和恢复方法见[保护说明](https://github.com/Shenrui-Ma/Laodi/blob/main/docs/PROTECTION.md#windows-使用)。不建议为开启此功能降级日常使用的客户端。
 
-在普通 PowerShell 中运行：
-
-```powershell
-& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.ps1').Content)) -Version 'v0.4.1-windows.beta.3'
-```
-
-无需管理员权限，默认安装到当前用户的 `%LOCALAPPDATA%\Laodi-skills`。**旧版安装未完成时，直接重新运行这条命令**，保留已有配置和记录。
+## 安装与更新
 
 ```powershell
-$Laodi = Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe'
-& $Laodi status
-& $Laodi notifications test
+& ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.ps1').Content)) -Version 'v0.4.1-windows.beta.4'
 ```
 
-## 更新
-
-beta.2 首次升级需要指定版本：
+已安装 beta.3 或更新版本：
 
 ```powershell
-& $Laodi update --version 'v0.4.1-windows.beta.3'
+& (Join-Path $env:LOCALAPPDATA 'Laodi-skills\laodi.exe') update
 ```
 
-升级到 beta.3 后，后续更新直接运行：
-
-```powershell
-& $Laodi update
-```
-
-推荐通道在公开安装包校验完成后推广，独立于 macOS Release。
+beta.2 或更早版本可直接重跑安装命令，或用 `update --version 'v0.4.1-windows.beta.4'`。安装不需要管理员权限，保留配置与事件。
 
 ## 验证范围
 
-已通过 [Windows 发布构建检查](https://github.com/Shenrui-Ma/Laodi/actions/runs/35562750242)：原生测试、竞态检查、`go vet`、离线通知协议测试，以及 ZIP、包内文件、版本和源码提交校验。
+发布前执行 Windows 原生测试、竞态检查、通知协议测试、包内校验和检查，以及已固定哈希的原版归档组件测试。本地接收器独立解密验证历史数据、待传包恢复、新工作区和增量归档；附加配置与发送器是测试实现。
 
-这些检查不代表全部设备上的真实客户端交互、可见通知、干净用户隔离和 24 小时运行均已通过。旧版客户端的后台打包上传也不在 Windows 当前覆盖承诺内。本版仍为 BETA，程序未做 Authenticode 签名。
+这些结果不等于完整客户端对官方服务的上传验收。保护限固定构建及归档路径，Windows 真实快照上传检测仍未启用；工具读取、模型请求和其他上传路径不在阻断范围。
 
-本 Release 只包含 Windows 资产，不替换 macOS 安装包。
+启用保护后，回退到 beta.3 或更早版本前请先撤销。若已回退，恢复记录和新版版本目录仍保留，可使用支持保护的新版撤销。
+
+本版仍为 BETA，未做 Authenticode 签名；不替换 macOS Release。

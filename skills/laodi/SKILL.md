@@ -19,7 +19,7 @@ Laodi 是本地隐私报警器。Skill 负责查询与解释；持续监测由�
    | 现在检查已支持的数据目录 | `laodi check --format agent-summary` |
    | 刚才提醒了什么、过去发生了什么 | `laodi incidents --format agent-summary` |
    | 为什么没有提醒、权限是否不足 | `laodi doctor --format agent-summary` |
-   | macOS 归档限制是否还有效 | `laodi protect status --format agent-summary` |
+   | 已启用的打包限制是否有效 | `laodi protect status --format agent-summary` |
 
 3. 只根据结构化摘要解释事实，区分“本地快照”“上传尝试”“客户端接受记录”。没有字段或语义未验证时说明未知，不升级为“已经泄露”。安装前已有记录也不能说成刚刚发生。
    工具事件还须区分“敏感访问请求”和“输出出现疑似凭据”，按source标注客户端；不能据此认定已经发送给模型。`laodi hooks status`可只读查看排队数量及历史缺口，空队列不证明Hook已接入。
