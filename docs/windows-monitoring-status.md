@@ -43,3 +43,19 @@ The native Startup regression runs a real stable launcher and versioned monitor
 inside synthetic directories. It checks child crashes, repeated installation,
 explicit recovery, version switching and removal. It does not verify a user's
 actual logout/login or explain an unrelated machine's scheduler access denial.
+
+## Installation permission diagnostics
+
+New private files and temporary Startup shortcuts explicitly receive the
+current user's ownership and protected permissions when created. This avoids
+accidentally inheriting an administrative token's default owner; installation
+does not change the token, repair existing foreign files, or relax state checks.
+
+Hook configuration rejection reports fixed check-stage, principal-role,
+permission and inheritance categories without account names, SIDs or settings
+contents. Ordinary deny entries and ineffective inherit-only entries do not
+grant access and are no longer rejected as writable. Other principals' effective
+write permissions, including writes inherited by future hook files, remain
+rejected. Send the concise diagnostic for an affected machine before deciding
+whether a configuration-specific repair is appropriate; do not recursively
+rewrite a user profile or client directory's permissions.
