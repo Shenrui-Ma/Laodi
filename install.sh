@@ -13,7 +13,7 @@ fail() {
 main() {
   # User archive-tool defaults must not alter inspection or the extraction directory.
   unset UNZIP UNZIPOPT ZIPINFO ZIPINFOOPT
-  laodi_version=${LAODI_VERSION:-v0.4.1-beta.1}
+  laodi_version=${LAODI_VERSION:-v0.4.1-beta.2}
   case "${1:-}" in
     --version)
       [ "$#" -ge 2 ] || fail '--version requires a release tag.'
@@ -43,10 +43,10 @@ main() {
     }
     END { exit (NR != 1 || bad) }
   '; then
-    fail 'Use a release tag such as v0.4.1-beta.1.'
+    fail 'Use a release tag such as v0.4.1-beta.2.'
   fi
 
-  [ "$(uname -s)" = Darwin ] || fail 'This release supports macOS only; Windows support is planned.'
+  [ "$(uname -s)" = Darwin ] || fail 'This package supports macOS only; use the Windows installer on Windows.'
   case "$(uname -m)" in arm64|x86_64) ;; *) fail 'Unsupported Mac architecture.' ;; esac
   laodi_macos=$(sw_vers -productVersion) || fail 'Cannot determine the macOS version.'
   if ! printf '%s\n' "$laodi_macos" | awk -F. '

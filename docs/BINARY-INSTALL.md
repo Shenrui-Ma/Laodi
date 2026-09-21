@@ -1,6 +1,6 @@
 # 预编译包安装与更新
 
-普通使用者无需构建源码。当前发行包为`v0.4.1-beta.1`，适用于macOS13+，包含Apple Silicon和Intel两种架构。
+普通使用者无需构建源码。当前发行包为`v0.4.1-beta.2`，适用于macOS13+，包含Apple Silicon和Intel两种架构。
 
 ## 命令行接入
 
@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | 
 curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | sh -s -- --dry-run
 ```
 
-也可自行从[Release页面](https://github.com/Shenrui-Ma/Laodi/releases/tag/v0.4.1-beta.1)下载ZIP、校验并运行包内`install.command`，但这不是默认必经步骤。
+也可自行从[Release页面](https://github.com/Shenrui-Ma/Laodi/releases/tag/v0.4.1-beta.2)下载ZIP、校验并运行包内`install.command`，但这不是默认必经步骤。
 
 安装只作用于当前用户，无需sudo，不重启现有Agent。主程序、通知helper和Skill复制到`~/Library/Application Support/Laodi-skills/runtime`，所以完成安装后可以移动或移除解压文件夹。安装器不改PATH、不自动把Skill放进客户端目录。
 
@@ -39,7 +39,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | 
 "$HOME/Library/Application Support/Laodi-skills/runtime/laodi" update
 ```
 
-`update --dry-run`下载并校验发行包，只显示计划。`update --version v0.4.1-beta.1`指定官方发行版本。默认使用官方安装脚本推荐的版本，不依赖GitHub的`latest`是否包含预览版。自定义状态目录的安装会沿用当前可执行文件所在的状态目录，也可明确传入`--state-dir`。
+`update --dry-run`下载并校验发行包，只显示计划。`update --version v0.4.1-beta.2`指定官方发行版本。默认使用官方安装脚本推荐的版本，不依赖GitHub的`latest`是否包含预览版。自定义状态目录的安装会沿用当前可执行文件所在的状态目录，也可明确传入`--state-dir`。
 
 更新前验证已安装文件、所有权凭据及实际Hook配置，完整准备新运行目录后使用macOS原子目录交换。已有Hook配置、通知应用身份、事件库及队列保留；只短暂重启老底监测进程，不重启Agent或更改其权限。同一包重复安装不重启监测。监测重启期间，工具事件仍可进入原有有界队列；快照轮询有短暂间隔，不能承诺零观测缺口。
 

@@ -12,7 +12,7 @@ import zipfile
 
 
 REPO = Path(__file__).resolve().parents[2]
-TAG = "v0.4.1-beta.1"
+TAG = "v0.4.1-beta.2"
 SECRET = "BOOTSTRAP-PRIVATE-ENV-MUST-NOT-BE-PRINTED"
 
 

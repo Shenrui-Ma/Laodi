@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/Shenrui-Ma/Laodi/main/install.sh | 
 
 已安装时会更新，保留配置和事件记录。
 
-[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi/releases/tag/v0.4.1-beta.1) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
+[Release 与校验文件](https://github.com/Shenrui-Ma/Laodi/releases/tag/v0.4.1-beta.2) · [查看安装脚本](install.sh) · [详细说明](docs/BINARY-INSTALL.md)
 
 查看状态：
 
