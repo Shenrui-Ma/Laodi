@@ -5,8 +5,10 @@ package laodi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -225,17 +227,32 @@ func runWindowsStartup(ctx context.Context, op string, plan ServicePlan, hash st
 		}
 		// Generate the shortcut inside the private state directory. Publish its exact
 		// bytes with a no-clobber native move; COM never writes the real Startup entry.
-		f, err := os.CreateTemp(plan.options.StateDir, ".startup-*.lnk")
+		root, err := openStateRoot(plan.options.StateDir, false)
 		if err != nil {
 			return link, err
 		}
-		temp := f.Name()
-		f.Close()
-		// Native Shell persistence creates the temporary shortcut itself.
-		if err := os.Remove(temp); err != nil {
+		defer root.Close()
+		unpin, err := windowsPinRoot(root)
+		if err != nil {
 			return link, err
 		}
-		defer os.Remove(temp)
+		defer unpin()
+		var nonce [16]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return link, err
+		}
+		name := ".startup-" + hex.EncodeToString(nonce[:]) + ".lnk"
+		f, err := createPrivateFile(root, name, os.O_WRONLY)
+		if err != nil {
+			return link, err
+		}
+		temp := filepath.Join(root.Name(), name)
+		defer root.Remove(name)
+		if err := f.Close(); err != nil {
+			return link, err
+		}
+		// Save into the exclusively created private file, retaining its explicit
+		// owner instead of inheriting the process token's administrative default.
 		if err := writeNativeWindowsShortcut(temp, link.Target, link.Arguments); err != nil {
 			return link, err
 		}

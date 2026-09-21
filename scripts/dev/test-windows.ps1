@@ -15,13 +15,16 @@ if (-not ('LaodiTestProcessOwner' -as [type])) {
 }
 $ownerScope = $null
 $previous = @{}
-foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR', 'LAODI_NATIVE_STARTUP_MONITOR_EXE')) {
+foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR', 'LAODI_NATIVE_STARTUP_MONITOR_EXE', 'LAODI_REQUIRE_ADMIN_OWNER')) {
     $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 Push-Location ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..')))
 try {
     $ownerScope = [LaodiTestProcessOwner]::new()
     Write-Host "Native test previous default owner matched user: $($ownerScope.PreviousOwnerIsUser)"
+    # Normal fixture ownership must not hide failures with administrative
+    # default owners. The isolated child restores that case independently.
+    if (-not $ownerScope.PreviousOwnerIsUser) { $env:LAODI_REQUIRE_ADMIN_OWNER = '1' }
     # Check ordinary, implicit object creation, not explicitly-owned fixtures.
     $probe = Join-Path $testTemp 'owner-probe'
     [void][IO.Directory]::CreateDirectory($probe)
@@ -49,14 +52,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Native Windows tests failed.' }
     # Retain bounded native/legacy persistence diagnostics for the regression
     # that cannot be reproduced by a cross-compile on another OS.
-    & $Go @testArguments -run '^TestWindowsStartupNativePersistenceSpecialPaths$' -v ./internal/laodi
+    & $Go @testArguments -run '^TestWindows(StartupNativePersistenceSpecialPaths|PrivateCreationWithAdministrativeDefaultOwner)$' -v ./internal/laodi
     if ($LASTEXITCODE -ne 0) { throw 'Native shortcut persistence regression failed.' }
     & $Go vet ./...
     if ($LASTEXITCODE -ne 0) { throw 'Windows Go vet failed.' }
 } finally {
     try {
         Pop-Location
-        foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR', 'LAODI_NATIVE_STARTUP_MONITOR_EXE')) {
+        foreach ($name in @('TMP', 'TEMP', 'GOTMPDIR', 'LAODI_NATIVE_STARTUP_MONITOR_EXE', 'LAODI_REQUIRE_ADMIN_OWNER')) {
             [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process')
         }
         Remove-Item -LiteralPath $testTemp -Recurse -Force
