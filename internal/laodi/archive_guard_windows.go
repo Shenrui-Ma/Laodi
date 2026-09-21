@@ -499,7 +499,7 @@ func windowsArchiveApply(root string, n windowsArchiveNode, sid string, enable b
 	parent, err := os.OpenRoot(filepath.Dir(path))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
+			return false, errors.New("journalled archive identity is missing; recovery retained")
 		}
 		return false, err
 	}
@@ -511,7 +511,9 @@ func windowsArchiveApply(root string, n windowsArchiveNode, sid string, enable b
 	defer unpin()
 	h, err := windowsArchiveOpen(path, true)
 	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
+		// A missing name does not prove deletion: a renamed object keeps its
+		// restrictive ACL. Retain its original ACL until identity is recovered.
+		return false, errors.New("journalled archive identity is missing; recovery retained")
 	}
 	if err != nil {
 		return false, err

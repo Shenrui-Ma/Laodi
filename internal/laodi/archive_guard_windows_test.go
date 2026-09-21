@@ -233,7 +233,7 @@ func TestWindowsArchiveGuardRejectsLinksAndReplacements(t *testing.T) {
 			t.Fatal("hardlink accepted")
 		}
 	})
-	t.Run("replacement", func(t *testing.T) {
+	t.Run("renamed-pending-file", func(t *testing.T) {
 		f := newWindowsGuardFixture(t, true)
 		f.enable(t)
 		path := filepath.Join(f.workspace, "pending", "a.tar.gz.enc")
@@ -241,19 +241,76 @@ func TestWindowsArchiveGuardRejectsLinksAndReplacements(t *testing.T) {
 		if err := os.Rename(path, old); err != nil {
 			t.Fatal(err)
 		}
-		// Restore the original named file before cleanup; never erase its ACL.
+		// Restore the original name before the fixture cleanup retries recovery.
 		defer func() {
-			if _, err := DisableArchiveGuard(f.home, f.state); err != nil {
-				t.Error(err)
-			}
 			if err := os.Rename(old, path); err != nil {
 				t.Error(err)
 			}
 		}()
-		if _, err := DisableArchiveGuard(f.home, f.state); err != nil {
-			t.Fatal(err)
+		if s, err := DisableArchiveGuard(f.home, f.state); err == nil || !s.RecoveryNeeded || s.Healthy {
+			t.Fatal("missing protected file discarded recovery", s, err)
+		}
+		if _, err := os.Stat(filepath.Join(f.state, "archive-guard", "receipt.json")); err != nil {
+			t.Fatal("original ACL recovery record lost", err)
+		}
+		if _, err := os.ReadFile(old); !errors.Is(err, os.ErrPermission) {
+			t.Fatal("renamed pending file did not retain its denied ACL", err)
 		}
 	})
+}
+
+func TestWindowsArchiveRenamedObjectsRetainRecoveryUntilRestored(t *testing.T) {
+	for _, target := range []string{"pending-file", "pending-directory", "workspace", "root"} {
+		t.Run(target, func(t *testing.T) {
+			f := newWindowsGuardFixture(t, true)
+			before, _, err := windowsArchiveLayout(f.home)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.enable(t)
+			path := map[string]string{
+				"pending-file":      filepath.Join(f.workspace, "pending", "a.tar.gz.enc"),
+				"pending-directory": filepath.Join(f.workspace, "pending"),
+				"workspace":         f.workspace,
+				"root":              f.root,
+			}[target]
+			moved := filepath.Join(f.home, "renamed-protected-object")
+			if err := os.Rename(path, moved); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if _, err := os.Stat(moved); err == nil {
+					if err := os.Rename(moved, path); err != nil {
+						t.Error(err)
+					}
+				}
+			}()
+			for attempt := 0; attempt < 2; attempt++ {
+				s, err := DisableArchiveGuard(f.home, f.state)
+				if err == nil || !s.RecoveryNeeded || s.Healthy {
+					t.Fatal("missing identity was treated as restored", s, err)
+				}
+				if _, err := windowsArchiveLoad(filepath.Join(f.state, "archive-guard"), f.home); err != nil {
+					t.Fatal("recovery record lost or invalid", err)
+				}
+			}
+			if err := os.Rename(moved, path); err != nil {
+				t.Fatal(err)
+			}
+			if s, err := DisableArchiveGuard(f.home, f.state); err != nil || s.RecoveryNeeded || !s.Healthy {
+				t.Fatal("restored identity could not recover", s, err)
+			}
+			for _, n := range before {
+				current, err := windowsArchiveMetadata(filepath.Join(f.root, n.Path), n.Path, n.Kind)
+				if err != nil || current.Identity != n.Identity || current.Control != n.Control || !windowsArchiveSameACL(current.Before, n.Before) {
+					t.Fatal("original identity/ACL not restored", n.Path, err)
+				}
+			}
+			if _, err := os.ReadFile(filepath.Join(f.workspace, "pending", "a.tar.gz.enc")); err != nil {
+				t.Fatal("pending content remains inaccessible after recovery", err)
+			}
+		})
+	}
 }
 
 func TestWindowsArchiveGuardPreservesGitAndBuild(t *testing.T) {
