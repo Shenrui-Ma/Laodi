@@ -53,7 +53,7 @@ func readArchiveProtectionSummary(home, stateDir, app string, verify func(string
 	}
 	p = SummarizeArchiveGuard(s)
 	if p.Status == "enabled" {
-		if !verify(app) {
+		if checkArchiveProtectionScope(home) != nil || !verify(app) {
 			p.Status = "unsupported_client"
 		}
 	}

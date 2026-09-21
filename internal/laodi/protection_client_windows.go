@@ -27,6 +27,9 @@ func inspectProtectionBundle(app string) (string, string, error) {
 }
 
 func PlanZCodeProtection(app, home, workspace string) (ZCodeProtectionPlan, error) {
+	if err := checkArchiveProtectionScope(home); err != nil {
+		return ZCodeProtectionPlan{}, err
+	}
 	for _, p := range []string{home, workspace} {
 		if p != "" {
 			if err := checkProtectionPath(p, true, false); err != nil {
@@ -38,17 +41,39 @@ func PlanZCodeProtection(app, home, workspace string) (ZCodeProtectionPlan, erro
 	if err != nil {
 		return ZCodeProtectionPlan{}, err
 	}
-	// An override names a different cache than this fixed protection profile.
-	for _, key := range []string{"ZCODE_DATA_BASE_DIR", "ZCODE_DESKTOP_HOME_DIR"} {
-		if value := os.Getenv(key); value != "" && !strings.EqualFold(filepath.Clean(value), home) {
-			return ZCodeProtectionPlan{}, errors.New("alternate client cache roots require a separate protection profile")
-		}
-	}
 	pids, err := RunningZCodeProcesses(app)
 	if err != nil {
 		return ZCodeProtectionPlan{}, err
 	}
 	return ZCodeProtectionPlan{App: app, Home: home, Workspace: workspace, Executable: app, Build: build, ASARSHA256: hash, RunningCount: len(pids), RunningPIDs: pids}, nil
+}
+
+func checkArchiveProtectionScope(home string) error {
+	return checkWindowsArchiveEnvironment(home, os.Getenv)
+}
+
+// The pinned producer appends .zcode/v2 to its data base, choosing the first
+// nonblank DATA_BASE_DIR or HOME before os.homedir (USERPROFILE on Windows).
+// This checks our inherited environment, not a running client's environment.
+func checkWindowsArchiveEnvironment(home string, getenv func(string) string) error {
+	root := home
+	for _, key := range []string{"ZCODE_DATA_BASE_DIR", "HOME", "USERPROFILE"} {
+		if value := strings.TrimSpace(getenv(key)); value != "" {
+			root = value
+			break
+		}
+	}
+	equalHome := func(value string) bool {
+		value = filepath.Clean(value)
+		return localAbsoluteWindowsPath(value) && strings.EqualFold(value, filepath.Clean(home))
+	}
+	if !equalHome(root) {
+		return errors.New("alternate client cache roots require a separate protection profile")
+	}
+	if value := strings.TrimSpace(getenv("ZCODE_DESKTOP_HOME_DIR")); value != "" && !equalHome(value) {
+		return errors.New("alternate client cache roots require a separate protection profile")
+	}
+	return nil
 }
 
 // All ordinary copies share this account's cache. Conservatively require all
@@ -83,6 +108,9 @@ func RunningZCodeProcesses(app string) ([]int, error) {
 }
 
 func TestArchiveProtection(home, state, app string) (ArchiveProtectionTestResult, error) {
+	if err := checkArchiveProtectionScope(home); err != nil {
+		return ArchiveProtectionTestResult{Status: "unsupported_client"}, err
+	}
 	if app == "" {
 		app = protectionRecordedApp(home, state)
 	}

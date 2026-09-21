@@ -27,3 +27,5 @@ func TestArchiveProtection(home, state, app string) (ArchiveProtectionTestResult
 }
 
 func protectionRecordedApp(home, state string) string { return "" }
+
+func checkArchiveProtectionScope(home string) error { return nil }
