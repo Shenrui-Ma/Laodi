@@ -12,6 +12,10 @@
 <p>skill 适配，无缝接入。</p>
 <p>有小动作，及时提醒。</p>
 
+<p>
+  <img src="assets/notification-preview.png" width="420" alt="Git 历史打包通知示例">
+</p>
+
 <p align="left">
   <br><br><br><br>
   <img src="assets/closure.png" width="350" alt="可露希尔表情插画">
