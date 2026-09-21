@@ -24,6 +24,10 @@ jobs:
       - name: Native tests and vet
         shell: pwsh
         run: ./scripts/dev/test-windows.ps1
+      - name: Verify original Windows archive components
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: ./scripts/dev/verify-windows-archive-component.ps1
       - name: Desktop installer worker (PowerShell 5.1 and 7)
         shell: pwsh
         run: |

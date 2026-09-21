@@ -40,6 +40,9 @@ jobs:
         shell: pwsh
         run: |
           ./platform/windows/notifier/build.ps1 -Test -OutputDirectory (Join-Path $env:RUNNER_TEMP 'laodi-notifier-tests')
+      - name: Verify original Windows archive components
+        shell: pwsh
+        run: ./scripts/dev/verify-windows-archive-component.ps1 -Race
       - name: Build Windows candidate
         shell: pwsh
         run: |
