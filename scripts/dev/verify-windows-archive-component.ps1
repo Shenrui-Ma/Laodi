@@ -6,9 +6,9 @@ param([string]$Go = 'go', [switch]$Race)
 # https://cdn-zcode.z.ai/zcode/electron/releases/3.11.2/windows-x64/latest.yml
 . (Join-Path $PSScriptRoot 'windows-test-common.ps1')
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'Requires native Windows.' }
-$node = (Get-Command node -CommandType Application -ErrorAction Stop).Source
-$python = (Get-Command python -CommandType Application -ErrorAction Stop).Source
-$sevenZip = (Get-Command 7z -CommandType Application -ErrorAction Stop).Source
+$node = (Get-Command node -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+$python = (Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+$sevenZip = (Get-Command 7z -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 if (-not ('LaodiTestProcessOwner' -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot 'test-process-owner.cs') }
 $ownerScope = [LaodiTestProcessOwner]::new()
 $directory = $null
