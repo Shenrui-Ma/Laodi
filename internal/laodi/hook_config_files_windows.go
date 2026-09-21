@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,6 +18,67 @@ import (
 )
 
 var replaceClientSettings = fileKernel.NewProc("ReplaceFileW")
+
+// This diagnostic contains only closed role, permission and check-stage
+// categories. Never include a SID, account name, path or descriptor text.
+type windowsHookACLError struct {
+	Stage, Reason, Role, Permissions, Scope, Entry, Inheritance string
+}
+
+func (e *windowsHookACLError) Error() string {
+	return fmt.Sprintf("hook settings ACL rejected (stage=%s, reason=%s, role=%s, permissions=%s, scope=%s, entry=%s, inheritance=%s)", e.Stage, e.Reason, e.Role, e.Permissions, e.Scope, e.Entry, e.Inheritance)
+}
+
+func windowsHookACLRole(sid, current string) string {
+	if sid == current {
+		return "current_user"
+	}
+	switch sid {
+	case "S-1-5-18":
+		return "system"
+	case "S-1-5-32-544":
+		return "administrators"
+	case "S-1-3-0":
+		return "creator_owner"
+	case "S-1-1-0":
+		return "everyone"
+	case "S-1-5-11":
+		return "authenticated_users"
+	case "S-1-5-32-545":
+		return "builtin_users"
+	default:
+		return "other_principal"
+	}
+}
+
+func windowsHookWritePermissions(mask uint32) string {
+	var permissions []string
+	for _, p := range []struct {
+		mask uint32
+		name string
+	}{{0x6, "data_write"}, {0x110, "metadata_write"}, {0x10040, "delete"}, {0xc0000, "security_write"}, {0x40000000, "generic_write"}, {0x10000000, "generic_all"}} {
+		if mask&p.mask != 0 {
+			permissions = append(permissions, p.name)
+		}
+	}
+	return strings.Join(permissions, "+")
+}
+
+func windowsHookACLInheritance(flags byte) string {
+	var inheritance []string
+	for _, f := range []struct {
+		flag byte
+		name string
+	}{{1, "files"}, {2, "directories"}, {4, "no_propagate"}, {8, "inherit_only"}, {16, "inherited"}} {
+		if flags&f.flag != 0 {
+			inheritance = append(inheritance, f.name)
+		}
+	}
+	if len(inheritance) == 0 {
+		return "none"
+	}
+	return strings.Join(inheritance, "+")
+}
 
 func checkHookPath(home, path string) error {
 	for _, value := range []string{home, path} {
@@ -47,7 +109,13 @@ func checkHookPath(home, path string) error {
 		if err != nil {
 			return errors.New("cannot inspect hook settings path")
 		}
-		err = windowsCheckClientHandle(syscall.Handle(f.Fd()), i < len(parts)-1)
+		stage := "ancestor_directory"
+		if i == -1 {
+			stage = "home_directory"
+		} else if i == len(parts)-1 {
+			stage = "settings_file"
+		}
+		err = windowsCheckClientHandleAt(syscall.Handle(f.Fd()), i < len(parts)-1, stage)
 		f.Close()
 		if err != nil {
 			return err
@@ -60,6 +128,17 @@ func checkHookPath(home, path string) error {
 // ACL; reject write access by other users rather than weakening Laodi's private
 // state ACL policy. Read-only ACEs do not authorize replacing hook commands.
 func windowsCheckClientHandle(handle syscall.Handle, directory bool) error {
+	stage := "settings_file"
+	if directory {
+		stage = "client_directory"
+	}
+	return windowsCheckClientHandleAt(handle, directory, stage)
+}
+
+func windowsCheckClientHandleAt(handle syscall.Handle, directory bool, stage string) error {
+	reject := func(reason, role, permissions, scope, entry string) *windowsHookACLError {
+		return &windowsHookACLError{Stage: stage, Reason: reason, Role: role, Permissions: permissions, Scope: scope, Entry: entry, Inheritance: "not_applicable"}
+	}
 	if err := windowsCheckFileIdentity(handle, directory); err != nil {
 		return err
 	}
@@ -71,15 +150,21 @@ func windowsCheckClientHandle(handle syscall.Handle, directory bool) error {
 	var acl, descriptor *byte
 	result, _, _ := getFileSecurityInfo.Call(uintptr(handle), 1, 1|4, uintptr(unsafe.Pointer(&owner)), 0, uintptr(unsafe.Pointer(&acl)), 0, uintptr(unsafe.Pointer(&descriptor)))
 	if result != 0 {
-		return syscall.Errno(result)
+		return reject("descriptor_unavailable", "unknown", "unknown", "object", "none")
 	}
 	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(descriptor))))
+	if owner == nil {
+		return reject("owner_unavailable", "unknown", "unknown", "object", "none")
+	}
 	ownerSID, err := owner.String()
-	if err != nil || (ownerSID != sid && !(directory && (ownerSID == "S-1-5-18" || ownerSID == "S-1-5-32-544"))) {
-		return errors.New("hook settings must be owned by the current user")
+	if err != nil {
+		return reject("owner_unavailable", "unknown", "unknown", "object", "none")
+	}
+	if ownerSID != sid && !(directory && (ownerSID == "S-1-5-18" || ownerSID == "S-1-5-32-544")) {
+		return reject("owner_not_current_user", windowsHookACLRole(ownerSID, sid), "ownership", "object", "none")
 	}
 	if acl == nil {
-		return errors.New("hook settings require a non-null DACL")
+		return reject("null_dacl", "everyone", "full_access", "object", "none")
 	}
 	header := (*struct {
 		Revision, Reserved     byte
@@ -87,30 +172,48 @@ func windowsCheckClientHandle(handle syscall.Handle, directory bool) error {
 	})(unsafe.Pointer(acl))
 	for i := uint16(0); i < header.Count; i++ {
 		var ace *byte
-		ok, _, callErr := getSecurityACE.Call(uintptr(unsafe.Pointer(acl)), uintptr(i), uintptr(unsafe.Pointer(&ace)))
+		ok, _, _ := getSecurityACE.Call(uintptr(unsafe.Pointer(acl)), uintptr(i), uintptr(unsafe.Pointer(&ace)))
 		if ok == 0 {
-			return callErr
+			return reject("entry_unavailable", "unknown", "unknown", "unknown", "unknown")
 		}
 		h := (*struct {
 			Type, Flags byte
 			Size        uint16
 			Mask        uint32
 		})(unsafe.Pointer(ace))
-		if h.Type != 0 || h.Size < 12 {
-			return errors.New("hook settings contain an unsupported DACL entry")
+		if (h.Type != 0 && h.Type != 1) || h.Size < 16 || h.Flags&^byte(0x1f) != 0 {
+			return reject("unsupported_entry", "unknown", "unknown", "unknown", "unsupported")
 		}
 		aceSID, err := (*syscall.SID)(unsafe.Add(unsafe.Pointer(ace), 8)).String()
 		if err != nil {
-			return errors.New("hook settings contain an invalid DACL entry")
+			return reject("invalid_entry", "unknown", "unknown", "unknown", "unknown")
+		}
+		// A conventional deny ACE cannot grant foreign access. Do not attempt
+		// to subtract it from later allows: ordering/group membership matters,
+		// and every untrusted write allow must still be rejected below.
+		if h.Type == 1 {
+			continue
+		}
+		// Inherit-only ACEs do not authorize access to this object. On a
+		// directory, keep rejecting foreign writes that could propagate to
+		// newly created hook files or directories before their next check.
+		if h.Flags&8 != 0 && (!directory || h.Flags&3 == 0) {
+			continue
 		}
 		if directory && aceSID == "S-1-3-0" && h.Flags&8 != 0 {
 			continue
 		}
 		// FILE_WRITE_DATA/APPEND/EA/ATTRIBUTES, DELETE_CHILD, DELETE,
 		// WRITE_DAC/OWNER, GENERIC_WRITE/ALL can alter this hook surface.
-		const writeMask = 0x00000156 | 0x00010000 | 0x00040000 | 0x00080000 | 0x40000000 | 0x10000000
-		if aceSID != sid && aceSID != "S-1-5-18" && aceSID != "S-1-5-32-544" && h.Mask&writeMask != 0 {
-			return errors.New("hook settings grant write access to another user")
+		permissions := windowsHookWritePermissions(h.Mask)
+		if aceSID != sid && aceSID != "S-1-5-18" && aceSID != "S-1-5-32-544" && permissions != "" {
+			scope := "object"
+			if h.Flags&8 != 0 {
+				scope = "descendants"
+			}
+			diagnostic := reject("foreign_write_allow", windowsHookACLRole(aceSID, sid), permissions, scope, "allow")
+			diagnostic.Inheritance = windowsHookACLInheritance(h.Flags)
+			return diagnostic
 		}
 	}
 	return nil
@@ -192,7 +295,7 @@ func replaceHookConfigFile(path string, data, expected []byte, mode os.FileMode)
 	if err != nil {
 		return err
 	}
-	err = windowsCheckClientHandle(syscall.Handle(dir.Fd()), true)
+	err = windowsCheckClientHandleAt(syscall.Handle(dir.Fd()), true, "settings_parent")
 	dir.Close()
 	if err != nil {
 		return err

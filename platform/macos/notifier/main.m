@@ -6,32 +6,32 @@
 // repository names, or user-controlled titles in this process's arguments.
 static NSDictionary<NSString *, NSArray<NSString *> *> *Templates(void) {
     return @{
-        @"snapshot-history": @[@"老底：发现含 Git 历史的快照线索",
-            @"清单包含历史对象；是否上传成功尚未确认。当前任务继续运行。可在 Agent 中询问“查看老底提醒”。"],
-        @"upload-attempt": @[@"老底：发现仓库上传尝试记录",
-            @"客户端进入过上传尝试流程；是否发出请求或完成仍未知。当前任务继续运行。可在 Agent 中询问“查看老底提醒”。"],
-        @"upload-accepted": @[@"老底：发现上传接受记录",
-            @"客户端记录表明上传获确认；远端保存情况未经核验。当前任务继续运行。可在 Agent 中询问“查看老底提醒”。"],
-        @"snapshot-workspace": @[@"老底：发现工作区快照清单",
-            @"客户端生成了工作区文件清单；未读取文件内容，是否上传或包含秘密尚未知。当前任务继续运行。"],
-        @"workspace-upload-attempt": @[@"老底：发现工作区快照上传尝试记录",
-            @"客户端进入过相关快照的上传尝试流程；是否发出请求或完成仍未知。当前任务继续运行。"],
-        @"workspace-upload-accepted": @[@"老底：发现工作区快照上传接受记录",
-            @"客户端记录相关快照获HTTP成功响应；未据此确认包含Git历史或秘密，远端留存未知。当前任务继续运行。"],
-        @"snapshot-config": @[@"老底：发现附加配置快照线索",
-            @"附加清单列入了全局配置；未读取配置内容，是否包含秘密或完成上传尚未知。当前任务继续运行。"],
-        @"config-upload-attempt": @[@"老底：发现附加配置上传尝试记录",
-            @"客户端进入过相关快照的上传尝试流程；是否发出请求或完成仍未知。当前任务继续运行。"],
-        @"config-upload-accepted": @[@"老底：发现附加配置上传接受记录",
-            @"客户端记录相关快照获HTTP成功响应；具体配置内容与远端保存情况未经核验。当前任务继续运行。"],
-        @"tool-output-sensitive": @[@"老底：工具输出出现疑似凭据",
-            @"已在本机记录风险，提醒不包含具体内容；是否进入模型请求或完成上传尚未确认。当前任务继续运行。"],
-        @"hook-coverage-degraded": @[@"老底：工具事件检测存在缺口",
-            @"部分事件可能未被完整检查。当前任务继续运行。可在 Agent 中询问“检查老底状态”。"],
-        @"protection-coverage-degraded": @[@"老底：归档限制需要检查",
-            @"归档限制未通过健康检查，当前不应依赖它阻止额外快照。任务继续运行；请查看老底状态。此提醒不代表发生了上传。"],
-        @"coverage-degraded": @[@"老底：部分监测暂不可用",
-            @"已支持的监测范围出现缺口。当前任务继续运行。可在 Agent 中询问“检查老底状态”。"]
+        @"archive-blocked-test": @[@"测试打包操作已拦截",
+            @"Git 历史打包保护正常。"],
+        @"snapshot-history": @[@"发现：Git 历史打包",
+            @"某APP的打包清单包含 Git 历史，上传情况待确认。"],
+        @"upload-attempt": @[@"发现：Git 历史上传尝试",
+            @"某APP记录了 Git 历史上传尝试，结果待确认。"],
+        @"upload-accepted": @[@"发现：Git 历史上传确认",
+            @"某APP记录了 Git 历史上传成功，远端留存情况未知。"],
+        @"snapshot-workspace": @[@"发现：项目文件打包",
+            @"某APP已生成项目文件的打包清单，上传情况待确认。"],
+        @"workspace-upload-attempt": @[@"发现：项目文件上传尝试",
+            @"某APP记录了项目文件上传尝试，结果待确认。"],
+        @"workspace-upload-accepted": @[@"发现：项目文件上传确认",
+            @"某APP记录了项目文件上传成功，远端留存情况未知。"],
+        @"snapshot-config": @[@"发现：用户配置打包",
+            @"某APP的打包清单包含用户配置，上传情况待确认。"],
+        @"config-upload-attempt": @[@"发现：用户配置上传尝试",
+            @"某APP记录了用户配置上传尝试，结果待确认。"],
+        @"config-upload-accepted": @[@"发现：用户配置上传确认",
+            @"某APP记录了用户配置上传成功，远端留存情况未知。"],
+        @"tool-output-sensitive": @[@"发现：疑似密钥输出",
+            @"工具返回的内容包含疑似密钥，是否发送给模型未知。"],
+        @"hook-coverage-degraded": @[@"发现：工具监测不完整",
+            @"部分工具事件可能未被完整检查。"],
+        @"coverage-degraded": @[@"发现：部分监测不可用",
+            @"部分已接入来源暂时无法正常监测。"]
     };
 }
 
@@ -96,7 +96,7 @@ int main(int argc, const char *argv[]) {
             puts("LaodiNotify --status\n"
                  "LaodiNotify --request-permission\n"
                  "LaodiNotify --send --id OPAQUE_ID --kind KIND [--existing]\n"
-                 "KIND: snapshot-history | upload-attempt | upload-accepted | snapshot-workspace | workspace-upload-attempt | workspace-upload-accepted | snapshot-config | config-upload-attempt | config-upload-accepted | tool-output-sensitive | hook-coverage-degraded | protection-coverage-degraded | coverage-degraded\n"
+                 "KIND: archive-blocked-test | snapshot-history | upload-attempt | upload-accepted | snapshot-workspace | workspace-upload-attempt | workspace-upload-accepted | snapshot-config | config-upload-attempt | config-upload-accepted | tool-output-sensitive | hook-coverage-degraded | coverage-degraded\n"
                  "Only --request-permission may request authorization. --send never requests it.");
             return 0;
         }

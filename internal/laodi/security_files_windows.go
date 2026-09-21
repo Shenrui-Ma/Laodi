@@ -351,22 +351,21 @@ func windowsPrivateName(root *os.Root, name string) (string, error) {
 }
 
 func createPrivateFile(root *os.Root, name string, flags int) (*os.File, error) {
-	_, err := windowsPrivateName(root, name)
+	path, err := windowsPrivateName(root, name)
 	if err != nil {
 		return nil, err
 	}
-	// Root.OpenFile binds creation to the opened directory, even if an ancestor
-	// was renamed. The protected parent DACL is inherited at creation; verify
-	// the resulting handle before exposing it to callers that write content.
-	f, err := root.OpenFile(name, flags|os.O_CREATE|os.O_EXCL, 0600)
+	// Inherited DACLs do not specify the new file's owner. Elevated tokens can
+	// default to Administrators, which our current-user check must still reject.
+	// Bind every ancestor to this Root before native CREATE_NEW with explicit
+	// current-user ownership and a protected DACL. Never repair/adopt an existing
+	// file or change the process token's default owner in production.
+	unpin, err := windowsPinRoot(root)
 	if err != nil {
 		return nil, err
 	}
-	if err := windowsCheckHandle(syscall.Handle(f.Fd()), false); err != nil {
-		f.Close()
-		return nil, err
-	}
-	return f, nil
+	defer unpin()
+	return windowsOpen(path, flags, true, false, syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE)
 }
 
 func openExistingStateFile(root *os.Root, name string, flags int) (*os.File, error) {

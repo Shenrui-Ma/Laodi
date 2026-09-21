@@ -5,8 +5,10 @@ package laodi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -79,6 +81,8 @@ type startupLink struct {
 }
 
 const startupLauncherReceipt = "startup-launcher.json"
+
+var errStartupLauncherIdentityUnavailable = errors.New("Startup launcher identity unavailable")
 
 func windowsStartupDirectory() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -223,17 +227,32 @@ func runWindowsStartup(ctx context.Context, op string, plan ServicePlan, hash st
 		}
 		// Generate the shortcut inside the private state directory. Publish its exact
 		// bytes with a no-clobber native move; COM never writes the real Startup entry.
-		f, err := os.CreateTemp(plan.options.StateDir, ".startup-*.lnk")
+		root, err := openStateRoot(plan.options.StateDir, false)
 		if err != nil {
 			return link, err
 		}
-		temp := f.Name()
-		f.Close()
-		// Native Shell persistence creates the temporary shortcut itself.
-		if err := os.Remove(temp); err != nil {
+		defer root.Close()
+		unpin, err := windowsPinRoot(root)
+		if err != nil {
 			return link, err
 		}
-		defer os.Remove(temp)
+		defer unpin()
+		var nonce [16]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return link, err
+		}
+		name := ".startup-" + hex.EncodeToString(nonce[:]) + ".lnk"
+		f, err := createPrivateFile(root, name, os.O_WRONLY)
+		if err != nil {
+			return link, err
+		}
+		temp := filepath.Join(root.Name(), name)
+		defer root.Remove(name)
+		if err := f.Close(); err != nil {
+			return link, err
+		}
+		// Save into the exclusively created private file, retaining its explicit
+		// owner instead of inheriting the process token's administrative default.
 		if err := writeNativeWindowsShortcut(temp, link.Target, link.Arguments); err != nil {
 			return link, err
 		}
@@ -352,7 +371,7 @@ func startupLauncherRunning(plan ServicePlan) (bool, error) {
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.New("Startup launcher identity unavailable")
+		return false, errStartupLauncherIdentityUnavailable
 	}
 	defer syscall.CloseHandle(h)
 	wait, err := syscall.WaitForSingleObject(h, 0)
@@ -364,7 +383,14 @@ func startupLauncherRunning(plan ServicePlan) (bool, error) {
 	}
 	image, created, err := processIdentity(h)
 	if err != nil {
-		return false, err
+		// The launcher can exit between the zero-time wait and the identity
+		// query. Windows may then deny QueryFullProcessImageName even though
+		// this exact process handle is now signaled. Do not misclassify a
+		// completed graceful stop or crash as an ownership failure.
+		if wait, waitErr := syscall.WaitForSingleObject(h, 0); waitErr == nil && wait == 0 {
+			return false, nil
+		}
+		return false, errStartupLauncherIdentityUnavailable
 	}
 	if created != r.Created {
 		return false, nil
@@ -475,24 +501,41 @@ func stopWindowsStartup(plan ServicePlan) error {
 		expected = plan.options.Executable
 	}
 	if err := StopMonitor(ctx, plan.options.StateDir, expected); err != nil {
-		unlock, lockErr := AcquireLock(plan.options.StateDir)
-		if lockErr != nil {
+		if lockErr := windowsStartupLocksIdle(plan.options.StateDir); lockErr != nil {
 			return err
 		}
-		unlock()
 	}
 	return waitWindowsStartupStopped(ctx, plan)
 }
+
+// A logon launch has no installer launcher receipt, and its supervisor keeps
+// running between worker retries. Hold both locks together to prove that neither
+// process can still own this installation, even when its receipt is unavailable.
+func windowsStartupLocksIdle(stateDir string) error {
+	unlockSupervisor, err := acquireWindowsNamedLock(stateDir, ".startup-supervisor.lock")
+	if err != nil {
+		return err
+	}
+	defer unlockSupervisor()
+	unlockWorker, err := AcquireLock(stateDir)
+	if err != nil {
+		return err
+	}
+	defer unlockWorker()
+	return nil
+}
+
 func waitWindowsStartupStopped(ctx context.Context, plan ServicePlan) error {
 	for {
 		running, err := startupLauncherRunning(plan)
-		if err != nil {
+		if err != nil && !errors.Is(err, errStartupLauncherIdentityUnavailable) {
 			return err
 		}
-		if !running {
-			unlock, err := AcquireLock(plan.options.StateDir)
-			if err == nil {
-				unlock()
+		// An exiting process may stop answering identity queries before its
+		// handle signals. Retry only this unavailable-identity case within the
+		// existing deadline; never treat unavailable ownership as stopped.
+		if err == nil && !running {
+			if err := windowsStartupLocksIdle(plan.options.StateDir); err == nil {
 				return nil
 			}
 		}

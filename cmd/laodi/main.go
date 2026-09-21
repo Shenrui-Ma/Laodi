@@ -83,6 +83,10 @@ func run(args []string) error {
 	notifier := fs.String("notifier", "", "显式通知helper；留空只记录，不请求权限")
 	apply := fs.Bool("apply", false, "显式安装/移除用户级后台服务")
 	hooksOnly := fs.Bool("hooks-only", false, "仅接收工具事件，不要求安装ZCode或读取快照")
+	startupWorker := new(bool)
+	if runtime.GOOS == "windows" {
+		fs.BoolVar(startupWorker, "startup-worker", false, "internal Startup worker")
+	}
 	if err = fs.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -113,6 +117,7 @@ func run(args []string) error {
 	scanner := &laodi.Scanner{Root: *root, Build: *build}
 	showSummary := func(s laodi.AgentSummary) error {
 		laodi.AddArchiveProtectionSummary(&s, home, *data, *app)
+		laodi.AddMonitoringSummary(&s, *data)
 		return printSummary(s, *format)
 	}
 	if discoverBuild {
@@ -131,6 +136,11 @@ func run(args []string) error {
 		}
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
+		if !*startupWorker && *duration == 0 {
+			if handled, err := runPlatformStartupWatch(ctx, *data, args); handled {
+				return err
+			}
+		}
 		return laodi.Watch(ctx, scanner, laodi.WatchOptions{StateDir: *data, Interval: *interval, Duration: *duration, Notifier: *notifier, NotifierForEvent: platformNotifierProvider(*data, *notifier), Output: os.Stdout, HooksOnly: *hooksOnly, ProtectionHome: home})
 	case "status", "incidents":
 		st, e := laodi.LoadState(*data)
@@ -211,6 +221,21 @@ func printSummary(s laodi.AgentSummary, format string) error {
 	}
 	fmt.Println("老底 · 本地隐私线索")
 	fmt.Printf("范围状态: %s\n解析器: %s\n", s.Coverage, s.Parser)
+	if s.Monitoring != nil {
+		m := s.Monitoring
+		fmt.Printf("后台身份与心跳: %s\n通知: 配置=%s，系统许可=%s，可见性=%s\n", m.Background, m.Notifications.Preference, m.Notifications.Authorization, m.Notifications.Visibility)
+		for _, client := range m.Clients {
+			fmt.Printf("%s 接入: 合同=%s，Hook=%s，回调记录=%s\n", client.Adapter, client.Contract, client.Hooks, client.Callback.Status)
+			if client.Callback.LastSample != nil {
+				fmt.Printf("  最近回调采样: %s（历史观测，非当前会话交付证明）\n", client.Callback.LastSample.Format(time.RFC3339))
+			}
+			for _, sample := range client.Callback.Samples {
+				if sample.Category != "callback_received" {
+					fmt.Printf("  覆盖采样: %s @ %s\n", sample.Category, sample.At.Format(time.RFC3339))
+				}
+			}
+		}
+	}
 	if s.Protection != nil {
 		if err := printArchiveProtection(*s.Protection, "text"); err != nil {
 			return err
