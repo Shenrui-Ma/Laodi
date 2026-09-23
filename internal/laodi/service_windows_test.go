@@ -93,6 +93,49 @@ func TestWindowsServiceTaskPlan(t *testing.T) {
 	}
 }
 
+func TestWindowsServiceTaskPlanEmptyRootOmitsFlag(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := t.TempDir()
+	// The distribution planner passes no Root, and DefaultEvidenceRoot is empty
+	// on Windows. Task Scheduler drops an empty quoted argument when rebuilding
+	// the command line, shifting every later argument, so the plan must never
+	// register one. CommandLineToArgv preserves it, which is why the round trip
+	// in TestWindowsServiceTaskPlan cannot catch this.
+	plan, err := PlanService(ServiceOptions{Executable: exe, Home: base, StateDir: filepath.Join(base, "状态 ' & % ! $ (local)"), HooksOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, arg := range plan.Arguments {
+		if arg == "" {
+			t.Fatalf("argument %d is empty: %#v", i, plan.Arguments)
+		}
+	}
+	var task struct {
+		Arguments string `xml:"Actions>Exec>Arguments"`
+	}
+	if err := xml.Unmarshal([]byte(plan.TaskXML), &task); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(task.Arguments, `""`) {
+		t.Fatalf("registered arguments contain an empty quoted element: %q", task.Arguments)
+	}
+	pair := false
+	for i := 0; i+1 < len(plan.Arguments); i++ {
+		if plan.Arguments[i] == "--state-dir" {
+			pair = true
+			if plan.Arguments[i+1] != plan.options.StateDir {
+				t.Fatalf("--state-dir value shifted: %#v", plan.Arguments)
+			}
+		}
+	}
+	if !pair {
+		t.Fatal("--state-dir missing")
+	}
+}
+
 func fakeWindowsTask(t *testing.T, plan *ServicePlan) (*windowsTask, *[]string) {
 	t.Helper()
 	task := &windowsTask{}

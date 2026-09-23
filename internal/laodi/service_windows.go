@@ -118,7 +118,15 @@ func PlanService(options ServiceOptions) (ServicePlan, error) {
 			return ServicePlan{}, errors.New("service executables must be existing regular .exe files")
 		}
 	}
-	args := []string{options.Executable, "watch", "--root", options.Root, "--state-dir", options.StateDir}
+	// Task Scheduler rebuilds the child command line from its Arguments string
+	// and drops an empty quoted element, shifting every later argument. watch
+	// defaults --root to DefaultEvidenceRoot, which is empty on Windows, so the
+	// flag must be omitted rather than registered with an empty value.
+	args := []string{options.Executable, "watch"}
+	if options.Root != "" {
+		args = append(args, "--root", options.Root)
+	}
+	args = append(args, "--state-dir", options.StateDir)
 	if options.App != "" {
 		args = append(args, "--app", options.App)
 	}
@@ -130,6 +138,11 @@ func PlanService(options ServiceOptions) (ServicePlan, error) {
 	}
 	if options.Notifier != "" {
 		args = append(args, "--notifier", options.Notifier)
+	}
+	for _, arg := range args {
+		if arg == "" {
+			return ServicePlan{}, errors.New("service arguments must not contain an empty value; Task Scheduler drops it and shifts the remaining arguments")
+		}
 	}
 	// Separate installations and users cannot accidentally address each other's tasks.
 	name := serviceLabel + "." + serviceHash([]byte(sid + "\x00" + strings.ToLower(filepath.Clean(options.StateDir))))[:24]
